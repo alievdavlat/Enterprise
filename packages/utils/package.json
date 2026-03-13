@@ -1,0 +1,17 @@
+{
+  "name": "@enterprise/utils",
+  "version": "1.0.0",
+  "description": "Enterprise Helper Utilities",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 tsup src/index.ts --format cjs,esm --dts",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 tsup src/index.ts --format cjs,esm --dts --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "tsup": "^8.0.0"
+  }
+}

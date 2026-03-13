@@ -1,0 +1,19 @@
+{
+  "name": "my-enterprise-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm run start --workspaces --if-present",
+    "dev:admin": "npm run dev -w admin",
+    "dev:backend": "npm run dev -w backend"
+  },
+  "workspaces": [
+    "admin",
+    "backend"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,28 @@
+node_modules
+.next
+
+# Windows reserved names
+nul
+con
+prn
+aux
+
+# Crash dumps
+*.stackdump
+dist
+build
+.turbo
+.enterprise
+.tmp
+*.log
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+coverage
+ts_errors.txt
+docs-local
+
+# Compiled output in backend src (use dist only)
+backends/express/src/**/*.js
+backends/express/src/**/*.js.map

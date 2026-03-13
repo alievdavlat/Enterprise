@@ -1,0 +1,19 @@
+{
+  "name": "my-enterprise-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "develop": "concurrently --names admin,api \"npm run dev:admin\" \"npm run dev:backend\"",
+    "build": "tsc && node scripts/build-admin.cjs && node scripts/copy-admin-build.cjs",
+    "start": "node dist/server.js",
+    "dev:admin": "node scripts/run-admin.js",
+    "dev:backend": "ts-node-dev --respawn --transpile-only src/server.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

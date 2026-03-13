@@ -1,0 +1,137 @@
+/* =============================================
+   Enterprise Design System - Core CSS Variables
+   ============================================= */
+
+:root {
+  /* Brand Colors */
+  --en-primary: #4945FF;
+  --en-primary-hover: #3633C7;
+  --en-primary-light: #F0F0FF;
+  --en-secondary: #9747FF;
+  --en-accent: #66B7F1;
+
+  /* Neutral */
+  --en-neutral-0: #ffffff;
+  --en-neutral-100: #F6F6F9;
+  --en-neutral-150: #EAEAEF;
+  --en-neutral-200: #DCDCE4;
+  --en-neutral-300: #C0C0CF;
+  --en-neutral-400: #A5A5BA;
+  --en-neutral-500: #8E8EA9;
+  --en-neutral-600: #666687;
+  --en-neutral-700: #4A4A6A;
+  --en-neutral-800: #32324D;
+  --en-neutral-900: #212134;
+  --en-neutral-1000: #181826;
+
+  /* Status Colors */
+  --en-success: #5CB176;
+  --en-success-light: #EAFBE7;
+  --en-warning: #D9822F;
+  --en-warning-light: #FDF4DC;
+  --en-danger: #EE5E52;
+  --en-danger-light: #FCECEA;
+  --en-info: #66B7F1;
+  --en-info-light: #EAF5FF;
+
+  /* Typography */
+  --en-font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --en-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Font Sizes */
+  --en-fs-xs: 0.625rem;
+  --en-fs-sm: 0.75rem;
+  --en-fs-md: 0.875rem;
+  --en-fs-base: 1rem;
+  --en-fs-lg: 1.125rem;
+  --en-fs-xl: 1.25rem;
+  --en-fs-2xl: 1.5rem;
+  --en-fs-3xl: 2rem;
+
+  /* Spacing */
+  --en-space-1: 0.25rem;
+  --en-space-2: 0.5rem;
+  --en-space-3: 0.75rem;
+  --en-space-4: 1rem;
+  --en-space-5: 1.25rem;
+  --en-space-6: 1.5rem;
+  --en-space-8: 2rem;
+  --en-space-10: 2.5rem;
+  --en-space-12: 3rem;
+  --en-space-16: 4rem;
+
+  /* Border Radius */
+  --en-radius-sm: 0.25rem;
+  --en-radius-md: 0.375rem;
+  --en-radius-lg: 0.5rem;
+  --en-radius-xl: 0.75rem;
+  --en-radius-2xl: 1rem;
+  --en-radius-full: 9999px;
+
+  /* Shadows */
+  --en-shadow-sm: 0 1px 2px rgba(33, 33, 52, 0.1);
+  --en-shadow-md: 0 4px 6px -1px rgba(33, 33, 52, 0.1), 0 2px 4px -1px rgba(33, 33, 52, 0.06);
+  --en-shadow-lg: 0 10px 15px -3px rgba(33, 33, 52, 0.1), 0 4px 6px -2px rgba(33, 33, 52, 0.05);
+  --en-shadow-xl: 0 20px 25px -5px rgba(33, 33, 52, 0.1), 0 10px 10px -5px rgba(33, 33, 52, 0.04);
+
+  /* Transitions */
+  --en-transition-fast: 100ms ease;
+  --en-transition-base: 200ms ease;
+  --en-transition-slow: 300ms ease;
+
+  /* Sidebar */
+  --en-sidebar-width: 256px;
+  --en-sidebar-collapsed-width: 64px;
+  --en-topbar-height: 56px;
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+  --en-neutral-0: #1C1C2E;
+  --en-neutral-100: #212134;
+  --en-neutral-150: #2A2A45;
+  --en-neutral-200: #32324D;
+  --en-neutral-300: #4A4A6A;
+  --en-neutral-400: #666687;
+  --en-neutral-500: #8E8EA9;
+  --en-neutral-600: #A5A5BA;
+  --en-neutral-700: #C0C0CF;
+  --en-neutral-800: #DCDCE4;
+  --en-neutral-900: #F6F6F9;
+  --en-neutral-1000: #ffffff;
+  --en-primary-light: #1F1F5F;
+  --en-success-light: #1D3A25;
+  --en-warning-light: #3D2B0A;
+  --en-danger-light: #3D1A17;
+  --en-info-light: #0D2B3E;
+}
+
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--en-font-sans);
+  font-size: var(--en-fs-md);
+  color: var(--en-neutral-800);
+  background: var(--en-neutral-100);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography utilities */
+.en-text-xs { font-size: var(--en-fs-xs); }
+.en-text-sm { font-size: var(--en-fs-sm); }
+.en-text-md { font-size: var(--en-fs-md); }
+.en-text-base { font-size: var(--en-fs-base); }
+.en-text-lg { font-size: var(--en-fs-lg); }
+.en-text-xl { font-size: var(--en-fs-xl); }
+.en-text-2xl { font-size: var(--en-fs-2xl); }
+.en-text-3xl { font-size: var(--en-fs-3xl); }
+.en-font-mono { font-family: var(--en-font-mono); }
+.en-font-medium { font-weight: 500; }
+.en-font-semibold { font-weight: 600; }
+.en-font-bold { font-weight: 700; }

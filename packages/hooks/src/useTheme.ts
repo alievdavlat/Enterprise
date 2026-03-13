@@ -1,0 +1,19 @@
+import { useContext, createContext } from "react";
+
+export type Theme = "light" | "dark" | "system";
+
+export interface ThemeContextValue {
+  theme: Theme;
+  resolvedTheme: "light" | "dark";
+  setTheme: (theme: Theme) => void;
+}
+
+export const ThemeContext = createContext<ThemeContextValue>({
+  theme: "system",
+  resolvedTheme: "light",
+  setTheme: () => {},
+});
+
+export function useTheme(): ThemeContextValue {
+  return useContext(ThemeContext);
+}
