@@ -5,7 +5,7 @@
 ### packages/core (papka) ichidagi lifecycle
 - **Joy:** `packages/core/src/lifecycle/LifecycleManager.ts`
 - **Vazifa:** Server-side **lifecycle** (Strapi uslubida): `beforeCreate`, `afterCreate`, `beforeUpdate`, … — ya’ni model/document hayot tsikli hodisalari. Nom "lifecycle" qilingan — `packages/hooks` (React hooks) bilan adashmaslik uchun.
-- **Ishlatiladi:** Backend (backends/express) — `@enterprise/core` orqali (`LifecycleManager`, getter: `getLifecycleManager`).
+- **Ishlatiladi:** Backend (packages/backends/express) — `@enterprise/core` orqali (`LifecycleManager`, getter: `getLifecycleManager`).
 
 ### packages/hooks (alohida paket)
 - **Joy:** `packages/hooks/` — npm paketi `@enterprise/hooks`
@@ -86,6 +86,6 @@ Strapi’da **packages/core** ichida alohida **"hooks"** nomli paket yo‘q. Rea
 | **Hooks (server)** | @strapi/core yoki boshqa core paket ichida (lifecycle) | `packages/core/src/hooks/HookManager.ts` — server lifecycle |
 | **Hooks (React)** | Alohida top-level “hooks” paketi yo‘q; admin/boshqa paket ichida | `packages/hooks` = `@enterprise/hooks` — alohida paket (useQuery, useMutation, …) |
 | **Daraja**       | 2 daraja: packages → packages/core → har bir paket | 1 daraja: packages → har bir paket (core, hooks, admin, …) |
-| **Backend entry** | packages/core/strapi (CLI + export) | backends/express (server) + packages/cli (create) |
+| **Backend entry** | packages/core/strapi (CLI + export) | packages/backends/express (server) + packages/cli (create) |
 
 Qisqacha: Strapi’da **core** = “core guruhi” papkasi (ichida @strapi/core va boshqalar); sizda **core** = to‘g‘ridan-to‘g‘ri bitta engine paketi. Sizda **hooks** = faqat React hooks paketi; core ichidagi **hooks** esa server lifecycle (HookManager) — ular bir-biriga bog‘lanmagan.

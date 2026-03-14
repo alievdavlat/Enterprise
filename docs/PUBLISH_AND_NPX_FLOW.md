@@ -10,7 +10,7 @@ Loyihani **npm’ga publish** qilgach, foydalanuvchi **`npx create-enterprise-ap
 
 | Qachon | Kim ishlatadi | `@enterprise/*` manbai |
 |--------|----------------|-------------------------|
-| **Monorepo ichida** `node packages/cli/dist/index.js create my-app` | Developer (siz) | `file:../../backends/express` va boshqalar — **patch** qilinadi, lokal kod ishlaydi |
+| **Monorepo ichida** `node packages/cli/dist/index.js create my-app` | Developer (siz) | `file:../../packages/backends/express` va boshqalar — **patch** qilinadi, lokal kod ishlaydi |
 | **Publish qilingach** `npx create-enterprise-app my-app` | End user (npm orqali) | **npm registry** — `^1.0.0` kabi versiya, paketlar npm’dan o‘rnatiladi |
 
 ---
@@ -43,7 +43,7 @@ Quyidagi paketlar **npm’da** bo‘lishi kerak (masalan `@your-scope/` yoki sco
 | Paket | package.json name | Izoh |
 |-------|--------------------|------|
 | CLI | `create-enterprise-app` | `packages/cli` — `npx create-enterprise-app` shu paketni ishlatadi |
-| Backend | `@enterprise/backend-express` | `backends/express` — API + admin static |
+| Backend | `@enterprise/backend-express` | `packages/backends/express` — API + admin static |
 | Admin | `@enterprise/admin` | `packages/admin` — Next.js admin |
 | Types | `@enterprise/types` | `packages/types` |
 | Design-system | `@enterprise/design-system` | `packages/design-system` |

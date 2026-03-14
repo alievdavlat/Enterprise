@@ -1,0 +1,57 @@
+{
+  "uid": "api::users.users",
+  "kind": "collectionType",
+  "collectionName": "users",
+  "displayName": "users",
+  "singularName": "users",
+  "pluralName": "users",
+  "draftAndPublish": true,
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "required": false
+    },
+    "isadmin": {
+      "type": "boolean",
+      "required": false
+    },
+    "richtext": {
+      "type": "richtext"
+    },
+    "component_for_users": {
+      "type": "component",
+      "component": "component::shared.newcomponennt",
+      "repeatable": true
+    },
+    "dynamic_zone": {
+      "type": "dynamiczone",
+      "components": [
+        "api::mycompnent.mycompnent",
+        "component::shared.newcomponennt"
+      ]
+    },
+    "chotam": {
+      "type": "component",
+      "component": "component::helloworl.chotamhello",
+      "repeatable": false
+    },
+    "just_another_dynamic_zone": {
+      "type": "dynamiczone",
+      "components": [
+        "component::helloworl.chotamhello"
+      ]
+    },
+    "bla_bla": {
+      "type": "component",
+      "component": "component::shared.blabla-display-name",
+      "repeatable": true
+    },
+    "boq_qorin": {
+      "type": "text"
+    }
+  }
+}

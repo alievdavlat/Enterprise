@@ -1,0 +1,22 @@
+{
+  "uid": "api::header.header",
+  "kind": "singleType",
+  "collectionName": "headers",
+  "displayName": "header",
+  "singularName": "header",
+  "pluralName": "headers",
+  "draftAndPublish": true,
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "headerbame": {
+      "type": "string",
+      "required": false
+    },
+    "myimg": {
+      "type": "media"
+    }
+  }
+}

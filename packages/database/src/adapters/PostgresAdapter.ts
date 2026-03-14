@@ -259,6 +259,40 @@ export class PostgresAdapter implements DatabaseAdapter {
     }
   }
 
+  async getTableColumns(tableName: string): Promise<string[]> {
+    const client = await this.getClient();
+    try {
+      const result = await client.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
+        [tableName],
+      );
+      return result.rows.map((r: { column_name: string }) => r.column_name);
+    } finally {
+      client.release();
+    }
+  }
+
+  async addColumnIfNotExists(
+    tableName: string,
+    columnName: string,
+    type: string,
+    options?: { nullable?: boolean; length?: number },
+  ): Promise<void> {
+    const existing = await this.getTableColumns(tableName);
+    if (existing.includes(columnName)) return;
+    const client = await this.getClient();
+    try {
+      const pgType = this.pgType(type, options?.length);
+      const nullable = options?.nullable !== false ? "" : " NOT NULL";
+      await client.query(
+        `ALTER TABLE "${tableName}" ADD COLUMN IF NOT EXISTS "${columnName}" ${pgType}${nullable}`,
+      );
+      console.log(`[PostgresAdapter] Added column "${columnName}" to "${tableName}"`);
+    } finally {
+      client.release();
+    }
+  }
+
   async raw(query: string, params: unknown[] = []): Promise<unknown> {
     const client = await this.getClient();
     try {

@@ -46,6 +46,16 @@ export interface DatabaseAdapter {
   dropTable(name: string): Promise<void>;
   tableExists(name: string): Promise<boolean>;
 
+  /** Optional: get existing column names (for schema migration) */
+  getTableColumns?(tableName: string): Promise<string[]>;
+  /** Optional: add column if not exists (for schema migration) */
+  addColumnIfNotExists?(
+    tableName: string,
+    columnName: string,
+    type: string,
+    options?: { nullable?: boolean; length?: number },
+  ): Promise<void>;
+
   // Raw query
   raw(query: string, params?: unknown[]): Promise<unknown>;
 }

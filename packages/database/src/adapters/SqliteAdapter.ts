@@ -226,6 +226,31 @@ export class SqliteAdapter implements DatabaseAdapter {
     return !!row;
   }
 
+  /** Get existing column names for a table */
+  async getTableColumns(tableName: string): Promise<string[]> {
+    const rows = this.getDb()
+      .prepare(`PRAGMA table_info("${tableName}")`)
+      .all() as { name: string }[];
+    return rows.map((r) => r.name);
+  }
+
+  /** Add a column to an existing table if it doesn't exist */
+  async addColumnIfNotExists(
+    tableName: string,
+    columnName: string,
+    type: string,
+    options?: { nullable?: boolean; length?: number },
+  ): Promise<void> {
+    const existing = await this.getTableColumns(tableName);
+    if (existing.includes(columnName)) return;
+    const nullable = options?.nullable !== false ? "" : " NOT NULL";
+    const sqlType = sqliteType(type, options?.length);
+    this.getDb().exec(
+      `ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${sqlType}${nullable}`,
+    );
+    console.log(`[SqliteAdapter] Added column "${columnName}" to "${tableName}"`);
+  }
+
   async raw(query: string, params: unknown[] = []): Promise<unknown> {
     const sql = toSqlitePlaceholders(query);
     return this.getDb().prepare(sql).all(...params);

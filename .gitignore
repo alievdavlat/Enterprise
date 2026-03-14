@@ -22,7 +22,7 @@ build
 coverage
 ts_errors.txt
 docs-local
-
+docs
 # Compiled output in backend src (use dist only)
-backends/express/src/**/*.js
-backends/express/src/**/*.js.map
+packages/backends/express/src/**/*.js
+packages/backends/express/src/**/*.js.map

@@ -16,7 +16,7 @@ const getRepoRoot = (): string =>
 const isMonorepo = (): boolean => {
   const root = getRepoRoot();
   return (
-    fs.existsSync(path.join(root, "backends", "express", "package.json")) &&
+    fs.existsSync(path.join(root, "packages", "backends", "express", "package.json")) &&
     fs.existsSync(path.join(root, "packages", "admin", "package.json"))
   );
 };
@@ -129,7 +129,7 @@ function patchEnterpriseDepsInApp(targetPath: string, repoRoot: string): void {
   const repoAbs = path.resolve(repoRoot);
   if (!targetAbs.startsWith(repoAbs) || targetAbs === repoAbs) return;
   const packagesDir = path.join(repoRoot, "packages");
-  const backendsExpressDir = path.join(repoRoot, "backends", "express");
+  const backendsExpressDir = path.join(repoRoot, "packages", "backends", "express");
   const adminPkgDir = path.join(repoRoot, "packages", "admin");
   if (!fs.existsSync(packagesDir)) return;
 
@@ -346,11 +346,11 @@ program
         await ensureEnvAndWriteDb(targetPath, dbclient, dbParams);
         spinner.succeed(chalk.green("API-only project created. .env created from .env.example. Run npm run dev."));
       } else if (useFullMonorepo) {
-        // Local mode: copy real backends/express and packages/admin, wire to workspace packages
+        // Local mode: copy real packages/backends/express and packages/admin, wire to workspace packages
         spinner.text = "Copying full backend and admin (with all modules)...";
         await fs.ensureDir(targetPath);
 
-        const backendSrc = path.join(repoRoot, "backends", "express");
+        const backendSrc = path.join(repoRoot, "packages", "backends", "express");
         const adminSrc = path.join(repoRoot, "packages", "admin");
         const backendDest = path.join(targetPath, "backend");
         const adminDest = path.join(targetPath, "admin");
