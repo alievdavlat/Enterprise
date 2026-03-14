@@ -25,6 +25,7 @@ interface FieldConfig {
   default?: unknown;
   private?: boolean;
   enum?: string[];
+  relation?: string;
 }
 
 function validateAndApplyDefaults(
@@ -98,6 +99,26 @@ function validateAndApplyDefaults(
     if (config.type === "boolean" && value !== undefined && value !== null) {
       if (typeof value !== "boolean" && value !== 0 && value !== 1 && value !== "true" && value !== "false") {
         errors.push(`"${field}" must be a boolean`);
+      }
+    }
+
+    if (config.type === "relation" && value !== undefined && value !== null && value !== "") {
+      const isMulti = config.relation === "oneToMany" || config.relation === "manyToMany";
+      if (isMulti) {
+        const arr = Array.isArray(value) ? value : [value];
+        const invalid = arr.some((v) => typeof v !== "number" || !Number.isInteger(v) || isNaN(v));
+        if (invalid) {
+          errors.push(`"${field}" must be an array of integers`);
+        } else {
+          result[field] = arr;
+        }
+      } else {
+        const n = Number(value);
+        if (!Number.isInteger(n) || isNaN(n)) {
+          errors.push(`"${field}" must be an integer`);
+        } else {
+          result[field] = n;
+        }
       }
     }
   }

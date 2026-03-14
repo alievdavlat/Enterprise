@@ -12,6 +12,14 @@ const FIELD_TO_COL: Record<string, ColType> = {
   enumeration: "string", media: "json", relation: "integer", component: "json", dynamiczone: "json",
 };
 
+function getColumnTypeForAttribute(field: { type?: string; relation?: string }): ColType {
+  const type = field.type || "string";
+  if (type === "relation" && (field.relation === "oneToMany" || field.relation === "manyToMany")) {
+    return "json";
+  }
+  return (FIELD_TO_COL[type] || "string") as ColType;
+}
+
 /** Add missing columns to an existing table when schema has new attributes */
 async function addMissingColumns(
   db: DatabaseAdapter,
@@ -22,8 +30,8 @@ async function addMissingColumns(
   const attrs = schema.attributes || {};
   for (const [name, field] of Object.entries(attrs)) {
     if (existing.includes(name)) continue;
-    const f = field as { type?: string; required?: boolean; maxLength?: number };
-    const colType = FIELD_TO_COL[f.type || "string"] || "string";
+    const f = field as { type?: string; relation?: string; required?: boolean; maxLength?: number };
+    const colType = getColumnTypeForAttribute(f);
     await db.addColumnIfNotExists(schema.collectionName, name, colType, {
       nullable: !f.required,
       length: f.maxLength,
@@ -82,10 +90,10 @@ export async function loadSchemasFromDb(
       if (!(await db.tableExists(schema.collectionName))) {
         const attributeColumns = Object.entries(schema.attributes || {}).map(
           ([name, field]) => {
-            const f = field as { type?: string; required?: boolean; maxLength?: number; unique?: boolean; default?: unknown };
+            const f = field as { type?: string; relation?: string; required?: boolean; maxLength?: number; unique?: boolean; default?: unknown };
             return {
               name,
-              type: FIELD_TO_COL[f.type || "string"] || "string",
+              type: getColumnTypeForAttribute(f),
               nullable: !f.required,
               length: f.maxLength,
               unique: f.unique || false,
@@ -156,10 +164,10 @@ export async function ensureTableForSchema(
   }
   const attributeColumns = Object.entries(schema.attributes || {}).map(
     ([name, field]) => {
-      const f = field as { type?: string; required?: boolean; maxLength?: number; unique?: boolean; default?: unknown };
+      const f = field as { type?: string; relation?: string; required?: boolean; maxLength?: number; unique?: boolean; default?: unknown };
       return {
         name,
-        type: FIELD_TO_COL[f.type || "string"] || "string",
+        type: getColumnTypeForAttribute(f),
         nullable: !f.required,
         length: f.maxLength,
         unique: f.unique || false,

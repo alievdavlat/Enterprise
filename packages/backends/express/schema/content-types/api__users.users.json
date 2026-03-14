@@ -7,6 +7,10 @@
   "pluralName": "users",
   "draftAndPublish": true,
   "attributes": {
+    "43": {
+      "type": "relation",
+      "target": "api::users.users"
+    },
     "title": {
       "type": "string",
       "required": true
@@ -52,6 +56,22 @@
     },
     "boq_qorin": {
       "type": "text"
+    },
+    "singlemedia": {
+      "type": "media"
+    },
+    "multi_image": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": [
+        "images",
+        "audios",
+        "files",
+        "videos"
+      ]
+    },
+    "json": {
+      "type": "json"
     }
   }
 }
