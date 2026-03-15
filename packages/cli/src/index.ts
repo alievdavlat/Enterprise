@@ -199,8 +199,6 @@ program
     "--backend <backend>",
     "Backend framework (express, nestjs, fastify, go)",
   )
-  .option("--ts, --typescript", "Use TypeScript (default)")
-  .option("--js, --javascript", "Use JavaScript")
   .option(
     "--layout <layout>",
     "Project layout: standard (full app) or API only",
@@ -267,14 +265,6 @@ program
           },
           {
             type: "list",
-            name: "language",
-            message: "Choose your language:",
-            choices: ["typescript", "javascript"],
-            default: "typescript",
-            when: !options.language,
-          },
-          {
-            type: "list",
             name: "layout",
             message: "Project layout:",
             choices: [
@@ -288,7 +278,7 @@ program
     const config = {
       backend: options.backend || (quickstart ? "express" : (answers as any).backend),
       dbclient: options.dbclient || (quickstart ? "sqlite" : (answers as any).dbclient),
-      language: options.language || (options.js ? "javascript" : "typescript"),
+      language: "typescript",
       layout: options.layout || (quickstart ? "standard" : (answers as any).layout),
     } as {
       backend: string;

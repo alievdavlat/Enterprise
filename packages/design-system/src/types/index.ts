@@ -1,6 +1,6 @@
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "danger" | "success" | "ghost" | "link";
-  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "danger" | "success" | "ghost" | "link" | "outline";
+  size?: "sm" | "md" | "lg" | "icon";
   loading?: boolean;
   icon?: React.ReactNode;
   iconRight?: React.ReactNode;
