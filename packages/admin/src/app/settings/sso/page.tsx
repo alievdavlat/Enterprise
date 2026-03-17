@@ -2,7 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Lock } from "lucide-react";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Toggle } from "@enterprise/design-system";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Switch,
+} from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -66,24 +76,35 @@ export default function SSOPage() {
     <div className="p-8 max-w-4xl space-y-8 animate-in fade-in duration-300">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Single Sign-On (SSO)</h1>
-          <p className="text-muted-foreground mt-1">Configure identity provider (SAML/OIDC)</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Single Sign-On (SSO)
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Configure identity provider (SAML/OIDC)
+          </p>
         </div>
-        <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        <Button onClick={save} disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </Button>
       </div>
 
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-base">SSO configuration</CardTitle>
-          <CardDescription>Settings are stored in the backend. Actual SSO login flow can be implemented later.</CardDescription>
+          <CardDescription>
+            Settings are stored in the backend. Actual SSO login flow can be
+            implemented later.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Enable SSO</p>
-              <p className="text-sm text-muted-foreground">Allow login via identity provider</p>
+              <p className="text-sm text-muted-foreground">
+                Allow login via identity provider
+              </p>
             </div>
-            <Toggle
+            <Switch
               checked={config.enabled ?? false}
               onCheckedChange={(v) => setConfig((c) => ({ ...c, enabled: v }))}
             />
@@ -92,7 +113,9 @@ export default function SSOPage() {
             <Label>Provider</Label>
             <Input
               value={config.provider ?? ""}
-              onChange={(e) => setConfig((c) => ({ ...c, provider: e.target.value }))}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, provider: e.target.value }))
+              }
               placeholder="oidc or saml"
             />
           </div>
@@ -100,7 +123,9 @@ export default function SSOPage() {
             <Label>Client ID</Label>
             <Input
               value={config.clientId ?? ""}
-              onChange={(e) => setConfig((c) => ({ ...c, clientId: e.target.value }))}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, clientId: e.target.value }))
+              }
               placeholder=""
             />
           </div>
@@ -109,7 +134,9 @@ export default function SSOPage() {
             <Input
               type="password"
               value={config.clientSecret ?? ""}
-              onChange={(e) => setConfig((c) => ({ ...c, clientSecret: e.target.value }))}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, clientSecret: e.target.value }))
+              }
               placeholder=""
             />
           </div>
@@ -117,7 +144,9 @@ export default function SSOPage() {
             <Label>Callback URL</Label>
             <Input
               value={config.callbackUrl ?? ""}
-              onChange={(e) => setConfig((c) => ({ ...c, callbackUrl: e.target.value }))}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, callbackUrl: e.target.value }))
+              }
               placeholder="https://admin.example.com/sso/callback"
             />
           </div>
@@ -125,7 +154,9 @@ export default function SSOPage() {
             <Label>Default role for new users</Label>
             <Input
               value={config.defaultRole ?? ""}
-              onChange={(e) => setConfig((c) => ({ ...c, defaultRole: e.target.value }))}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, defaultRole: e.target.value }))
+              }
               placeholder="authenticated"
             />
           </div>
@@ -139,7 +170,10 @@ export default function SSOPage() {
           </div>
           <div>
             <p className="font-medium">Enterprise feature</p>
-            <p className="text-sm text-muted-foreground">Full SSO login flow (SAML/OIDC) can be added as a separate integration.</p>
+            <p className="text-sm text-muted-foreground">
+              Full SSO login flow (SAML/OIDC) can be added as a separate
+              integration.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -28,6 +28,7 @@ import {
   Puzzle,
   ImageIcon,
   Link2,
+  Search,
 } from "lucide-react";
 import { TiptapEditor } from "./TiptapEditor";
 
@@ -335,7 +336,6 @@ function DynamicZoneFieldRenderer({
   );
 }
 
-/** Relation field: dropdown (single) or multi-select (oneToMany/manyToMany). Value = id (number) or id[] (number[]). */
 function RelationFieldRenderer({
   field,
   config,
@@ -456,7 +456,6 @@ function RelationFieldRenderer({
   );
 }
 
-/** Image details edit modal: name, caption, alternativeText + PATCH /upload/files/:id */
 function MediaDetailsEditDialog({
   open,
   onOpenChange,
@@ -506,43 +505,115 @@ function MediaDetailsEditDialog({
       open={open}
       onClose={() => onOpenChange(false)}
       title="Edit asset details"
+      className="max-w-[48rem]"
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="cursor-pointer">
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="cursor-pointer">
+            {saving ? "Saving..." : "Save changes"}
           </Button>
         </>
       }>
-      <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label>Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="grid gap-6 py-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)]">
+        <div className="space-y-4">
+          <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/60 bg-muted/40 flex items-center justify-center">
+            {asset?.url && isImageMime(String(asset.mime ?? "")) ? (
+              <img
+                src={getImageUrl(String(asset.url))}
+                alt={name || String(asset.name ?? "")}
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                <ImageIcon className="w-8 h-8" />
+                <span className="text-xs">
+                  {name || (asset?.name as string) || "No preview available"}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <div className="space-y-0.5">
+              <p className="font-medium text-[11px] uppercase tracking-wide text-foreground/70">
+                File name
+              </p>
+              <p className="truncate text-[13px]">
+                {asset?.name ? String(asset.name) : "–"}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="font-medium text-[11px] uppercase tracking-wide text-foreground/70">
+                Type
+              </p>
+              <p className="truncate text-[13px]">
+                {asset?.mime ? String(asset.mime) : "Unknown"}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="font-medium text-[11px] uppercase tracking-wide text-foreground/70">
+                Size
+              </p>
+              <p className="truncate text-[13px]">
+                {asset?.size
+                  ? `${Math.round(Number(asset.size) / 1024)} KB`
+                  : "–"}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="font-medium text-[11px] uppercase tracking-wide text-foreground/70">
+                Dimensions
+              </p>
+              <p className="truncate text-[13px]">
+                {asset?.width && asset?.height
+                  ? `${asset.width} × ${asset.height}`
+                  : "–"}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="grid gap-2">
-          <Label>Caption</Label>
-          <Input
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Optional"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Alternative text</Label>
-          <Input
-            value={alternativeText}
-            onChange={(e) => setAlt(e.target.value)}
-            placeholder="For accessibility"
-          />
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="File name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Caption</Label>
+            <Input
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Optional short description"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Alternative text</Label>
+            <Input
+              value={alternativeText}
+              onChange={(e) => setAlt(e.target.value)}
+              placeholder="Describe the image content for accessibility"
+            />
+            <p className="text-xs text-muted-foreground">
+              Used by screen readers and when the image cannot be loaded.
+            </p>
+          </div>
         </div>
       </div>
     </Modal>
   );
 }
 
-/** Media field: asset gallery picker. Value = single object or array of objects { id, url, name, ... }. */
 function MediaFieldRenderer({
   field,
   config,
@@ -558,6 +629,8 @@ function MediaFieldRenderer({
     null,
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "images" | "files">("all");
 
   const current = multiple
     ? Array.isArray(value)
@@ -631,9 +704,21 @@ function MediaFieldRenderer({
     setEditAsset(updated);
   };
 
+  const filteredFiles = files.filter((file) => {
+    const name = String(file.name ?? "");
+    const mime = String(file.mime ?? "");
+    const matchesSearch = search
+      ? name.toLowerCase().includes(search.toLowerCase())
+      : true;
+    const isImg = isImageMime(mime);
+    const matchesFilter =
+      filter === "all" ? true : filter === "images" ? isImg : !isImg;
+    return matchesSearch && matchesFilter;
+  });
+
   return (
-    <div className="max-w-md space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="max-w-3xl space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
         {current.length > 0 ? (
           current.map((item, i) => {
             const obj = item as Record<string, unknown>;
@@ -643,27 +728,57 @@ function MediaFieldRenderer({
             return (
               <div
                 key={(obj?.id ?? i) as string}
-                className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 p-2 group">
+                className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 group min-w-[220px]">
                 {isImg && url ? (
                   <img
                     src={getImageUrl(url)}
                     alt={name}
-                    className="h-10 w-10 rounded object-cover shrink-0"
+                    className="h-10 w-10 rounded-md object-cover shrink-0"
                   />
                 ) : (
-                  <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
+                  <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0">
                     <ImageIcon className="w-5 h-5 text-muted-foreground" />
                   </div>
                 )}
-                <span className="text-sm truncate max-w-[120px]">{name}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => openDetails(obj)}>
-                  Edit
-                </Button>
+                <div className="flex flex-1 flex-col min-w-0">
+                  <span className="text-sm font-medium truncate">
+                    {name}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground truncate">
+                    {obj?.mime ? String(obj.mime) : "Unknown type"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-7 w-7"
+                    onClick={() => openDetails(obj)}>
+                    <Search className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      // remove this asset from the current selection
+                      if (multiple) {
+                        onChange(
+                          current.filter(
+                            (c) =>
+                              (c as { id?: unknown }).id !==
+                              (obj as { id?: unknown }).id,
+                          ),
+                        );
+                      } else {
+                        onChange(undefined);
+                      }
+                    }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             );
           })
@@ -694,25 +809,97 @@ function MediaFieldRenderer({
         open={open}
         onClose={() => setOpen(false)}
         title={`Select ${multiple ? "media" : "an asset"}`}
+        className="max-w-4xl"
         footer={
           <>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="cursor-pointer">
               Cancel
             </Button>
-            <Button onClick={confirmSelection}>
-              {multiple ? `Select ${pending.length} item(s)` : "Select"}
+            <Button
+              onClick={confirmSelection}
+              className="cursor-pointer"
+              disabled={!pending.length && multiple}>
+              {multiple
+                ? pending.length
+                  ? `Select ${pending.length} item(s)`
+                  : "Select items"
+                : "Select"}
             </Button>
           </>
         }>
-        <div className="sm:max-w-[640px] max-h-[80vh] flex flex-col">
-          <div className="flex-1 overflow-auto min-h-[240px]">
+        <div className="sm:max-w-[960px] max-h-[80vh] flex flex-col gap-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span>
+                  {pending.length} selected
+                  {multiple ? "" : " (single selection)"}
+                </span>
+              </span>
+              <span className="hidden md:inline">
+                {files.length ? `${files.length} items in library` : "No files"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setFilter("all")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md transition-colors",
+                    filter === "all"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}>
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter("images")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md transition-colors",
+                    filter === "images"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}>
+                  Images
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter("files")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md transition-colors",
+                    filter === "files"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}>
+                  Files
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name..."
+                  className="h-8 pl-7 pr-2 text-xs w-full md:w-56"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto min-h-[260px]">
             {loading ? (
               <p className="text-sm text-muted-foreground py-8 text-center">
                 Loading...
               </p>
             ) : (
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                {files.map((file) => {
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                {filteredFiles.map((file) => {
                   const url = file.url as string | undefined;
                   const name = (file.name as string) || "File";
                   const isImg = url && isImageMime((file.mime as string) || "");
@@ -723,7 +910,7 @@ function MediaFieldRenderer({
                       type="button"
                       onClick={() => togglePending(file)}
                       className={cn(
-                        "rounded-lg border-2 p-2 flex flex-col items-center gap-1 transition-colors",
+                        "rounded-lg border-2 p-2 flex flex-col items-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         selected
                           ? "border-primary bg-primary/10"
                           : "border-border hover:border-primary/50 hover:bg-muted/30",

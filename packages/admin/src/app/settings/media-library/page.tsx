@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Toggle, Label, Input } from "@enterprise/design-system";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Switch,
+  Label,
+  Input,
+} from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "@enterprise/design-system";
 
@@ -18,7 +28,13 @@ const defaultConfig: MediaLibraryConfig = {
   responsiveUpload: false,
   sizeOptimization: false,
   maxSize: 51200,
-  allowedTypes: ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"],
+  allowedTypes: [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+  ],
 };
 
 export default function MediaLibrarySettingsPage() {
@@ -62,34 +78,49 @@ export default function MediaLibrarySettingsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Media Library</h1>
-          <p className="text-muted-foreground mt-1">Configure the settings for the Media Library</p>
+          <p className="text-muted-foreground mt-1">
+            Configure the settings for the Media Library
+          </p>
         </div>
-        <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        <Button onClick={save} disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </Button>
       </div>
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-base">Asset management</CardTitle>
-          <CardDescription>Responsive upload and size optimization. Settings are stored in the backend.</CardDescription>
+          <CardDescription>
+            Responsive upload and size optimization. Settings are stored in the
+            backend.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Responsive friendly upload</p>
-              <p className="text-sm text-muted-foreground">Generate multiple formats (small, medium, large)</p>
+              <p className="text-sm text-muted-foreground">
+                Generate multiple formats (small, medium, large)
+              </p>
             </div>
-            <Toggle
+            <Switch
               checked={config.responsiveUpload ?? false}
-              onCheckedChange={(v) => setConfig((c) => ({ ...c, responsiveUpload: v }))}
+              onCheckedChange={(v) =>
+                setConfig((c) => ({ ...c, responsiveUpload: v }))
+              }
             />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Size optimization</p>
-              <p className="text-sm text-muted-foreground">Reduce image size and quality</p>
+              <p className="text-sm text-muted-foreground">
+                Reduce image size and quality
+              </p>
             </div>
-            <Toggle
+            <Switch
               checked={config.sizeOptimization ?? false}
-              onCheckedChange={(v) => setConfig((c) => ({ ...c, sizeOptimization: v }))}
+              onCheckedChange={(v) =>
+                setConfig((c) => ({ ...c, sizeOptimization: v }))
+              }
             />
           </div>
           <div className="grid gap-2">
@@ -97,10 +128,17 @@ export default function MediaLibrarySettingsPage() {
             <Input
               type="number"
               value={config.maxSize ?? 51200}
-              onChange={(e) => setConfig((c) => ({ ...c, maxSize: Number(e.target.value) || 51200 }))}
+              onChange={(e) =>
+                setConfig((c) => ({
+                  ...c,
+                  maxSize: Number(e.target.value) || 51200,
+                }))
+              }
               placeholder="51200"
             />
-            <p className="text-xs text-muted-foreground">Default 51200 (50 MB)</p>
+            <p className="text-xs text-muted-foreground">
+              Default 51200 (50 MB)
+            </p>
           </div>
         </CardContent>
       </Card>

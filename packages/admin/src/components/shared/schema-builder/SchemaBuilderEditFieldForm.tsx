@@ -1,6 +1,15 @@
 "use client";
 
-import { Input, Label, SelectWithOptions, Checkbox } from "@enterprise/design-system";
+import {
+  Input,
+  Label,
+  Checkbox,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@enterprise/design-system";
 import type { ContentTypeSchema } from "@/types";
 import type { FieldFormState } from "@/types/schema-builder";
 import { Layers } from "lucide-react";
@@ -82,31 +91,43 @@ export function SchemaBuilderEditFieldForm({
         {fieldType === "integer" && (
           <div className="space-y-2">
             <Label>Number format</Label>
-            <SelectWithOptions
-              options={[
-                { value: "integer", label: "Integer (e.g. 10)" },
-                { value: "biginteger", label: "Big integer" },
-                { value: "float", label: "Float (e.g. 3.14)" },
-                { value: "decimal", label: "Decimal (e.g. 9.99)" },
-              ]}
-              value={fieldNumberFormat}
-              onChange={(v) => setFieldForm({ fieldNumberFormat: v ?? "integer" })}
-            />
+            <Select
+              value={fieldNumberFormat || "integer"}
+              onValueChange={(v) =>
+                setFieldForm({ fieldNumberFormat: v ?? "integer" })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="integer">Integer (e.g. 10)</SelectItem>
+                <SelectItem value="biginteger">Big integer</SelectItem>
+                <SelectItem value="float">Float (e.g. 3.14)</SelectItem>
+                <SelectItem value="decimal">Decimal (e.g. 9.99)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         )}
 
         {fieldType === "date" && (
           <div className="space-y-2">
             <Label>Type</Label>
-            <SelectWithOptions
-              options={[
-                { value: "date", label: "Date only" },
-                { value: "datetime", label: "Date & Time" },
-                { value: "time", label: "Time only" },
-              ]}
-              value={fieldDateType}
-              onChange={(v) => setFieldForm({ fieldDateType: v ?? "date" })}
-            />
+            <Select
+              value={fieldDateType || "date"}
+              onValueChange={(v) =>
+                setFieldForm({ fieldDateType: v ?? "date" })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Date only</SelectItem>
+                <SelectItem value="datetime">Date &amp; Time</SelectItem>
+                <SelectItem value="time">Time only</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         )}
 
@@ -125,12 +146,23 @@ export function SchemaBuilderEditFieldForm({
         {fieldType === "relation" && (
           <div className="space-y-2">
             <Label>Target Schema</Label>
-            <SelectWithOptions
-              options={contentTypes.filter((c) => c.kind === "collectionType").map((ct) => ({ value: ct.uid, label: ct.displayName }))}
-              value={fieldTarget}
-              onChange={(v) => setFieldForm({ fieldTarget: v ?? "" })}
-              placeholder="Select target..."
-            />
+            <Select
+              value={fieldTarget || ""}
+              onValueChange={(v) => setFieldForm({ fieldTarget: v ?? "" })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select target..." />
+              </SelectTrigger>
+              <SelectContent>
+                {contentTypes
+                  .filter((c) => c.kind === "collectionType")
+                  .map((ct) => (
+                    <SelectItem key={ct.uid} value={ct.uid}>
+                      {ct.displayName}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
@@ -138,15 +170,28 @@ export function SchemaBuilderEditFieldForm({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Select a component</Label>
-              <SelectWithOptions
-                options={contentTypes.filter((c) => c.kind === "component").map((ct) => ({
-                  value: ct.uid,
-                  label: `${ct.displayName}${(ct as { category?: string }).category ? ` (${(ct as { category?: string }).category})` : ""}`,
-                }))}
-                value={fieldComponent}
-                onChange={(v) => setFieldForm({ fieldComponent: v ?? "" })}
-                placeholder="Choose component..."
-              />
+              <Select
+                value={fieldComponent || ""}
+                onValueChange={(v) =>
+                  setFieldForm({ fieldComponent: v ?? "" })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose component..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {contentTypes
+                    .filter((c) => c.kind === "component")
+                    .map((ct) => (
+                      <SelectItem key={ct.uid} value={ct.uid}>
+                        {ct.displayName}
+                        {(ct as { category?: string }).category
+                          ? ` (${(ct as { category?: string }).category})`
+                          : ""}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Type</Label>
@@ -230,17 +275,21 @@ export function SchemaBuilderEditFieldForm({
       {fieldType === "boolean" && (
         <div className="space-y-2">
           <Label>Default value</Label>
-          <SelectWithOptions
-            options={[
-              { value: "", label: "None" },
-              { value: "true", label: "True" },
-              { value: "false", label: "False" },
-            ]}
-            value={fieldDefaultValue}
-            onChange={(v) => setFieldForm({ fieldDefaultValue: v ?? "" })}
-            placeholder="None"
-            className="w-48"
-          />
+          <Select
+            value={fieldDefaultValue || ""}
+            onValueChange={(v) =>
+              setFieldForm({ fieldDefaultValue: v ?? "" })
+            }
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="None" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">None</SelectItem>
+              <SelectItem value="true">True</SelectItem>
+              <SelectItem value="false">False</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 

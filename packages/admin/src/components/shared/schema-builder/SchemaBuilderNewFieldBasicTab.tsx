@@ -1,6 +1,15 @@
 "use client";
 
-import { Input, Label, SelectWithOptions, Checkbox } from "@enterprise/design-system";
+import {
+  Input,
+  Label,
+  Checkbox,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@enterprise/design-system";
 import { FIELD_TYPES } from "@/consts";
 import { CategoryCombobox } from "./CategoryCombobox";
 import type { ContentTypeSchema } from "@/types";
@@ -90,31 +99,41 @@ export function SchemaBuilderNewFieldBasicTab({
       {fieldType === "integer" && (
         <div className="space-y-2">
           <Label>Number format</Label>
-          <SelectWithOptions
-            options={[
-              { value: "integer", label: "Integer (e.g. 10)" },
-              { value: "biginteger", label: "Big integer" },
-              { value: "float", label: "Float (e.g. 3.14)" },
-              { value: "decimal", label: "Decimal (e.g. 9.99)" },
-            ]}
-            value={fieldNumberFormat}
-            onChange={(v) => setFieldForm({ fieldNumberFormat: v ?? "integer" })}
-          />
+          <Select
+            value={fieldNumberFormat || "integer"}
+            onValueChange={(v) =>
+              setFieldForm({ fieldNumberFormat: v ?? "integer" })
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="integer">Integer (e.g. 10)</SelectItem>
+              <SelectItem value="biginteger">Big integer</SelectItem>
+              <SelectItem value="float">Float (e.g. 3.14)</SelectItem>
+              <SelectItem value="decimal">Decimal (e.g. 9.99)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
       {fieldType === "date" && (
         <div className="space-y-2">
           <Label>Type</Label>
-          <SelectWithOptions
-            options={[
-              { value: "date", label: "Date only" },
-              { value: "datetime", label: "Date & Time" },
-              { value: "time", label: "Time only" },
-            ]}
-            value={fieldDateType}
-            onChange={(v) => setFieldForm({ fieldDateType: v ?? "date" })}
-          />
+          <Select
+            value={fieldDateType || "date"}
+            onValueChange={(v) => setFieldForm({ fieldDateType: v ?? "date" })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date">Date only</SelectItem>
+              <SelectItem value="datetime">Date &amp; Time</SelectItem>
+              <SelectItem value="time">Time only</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -167,14 +186,23 @@ export function SchemaBuilderNewFieldBasicTab({
           </div>
           <div className="space-y-2">
             <Label>Target Schema</Label>
-            <SelectWithOptions
-              options={contentTypes
-                .filter((c) => c.kind === "collectionType")
-                .map((ct) => ({ value: ct.uid, label: ct.displayName }))}
-              value={fieldTarget}
-              onChange={(v) => setFieldForm({ fieldTarget: v ?? "" })}
-              placeholder="Select target..."
-            />
+            <Select
+              value={fieldTarget || ""}
+              onValueChange={(v) => setFieldForm({ fieldTarget: v ?? "" })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select target..." />
+              </SelectTrigger>
+              <SelectContent>
+                {contentTypes
+                  .filter((c) => c.kind === "collectionType")
+                  .map((ct) => (
+                    <SelectItem key={ct.uid} value={ct.uid}>
+                      {ct.displayName}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -250,17 +278,28 @@ export function SchemaBuilderNewFieldBasicTab({
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label>Select a component</Label>
-                <SelectWithOptions
-                  options={contentTypes
-                    .filter((c) => c.kind === "component")
-                    .map((ct) => ({
-                      value: ct.uid,
-                      label: `${ct.displayName}${(ct as { category?: string }).category ? ` (${(ct as { category?: string }).category})` : ""}`,
-                    }))}
-                  value={fieldComponent}
-                  onChange={(v) => setFieldForm({ fieldComponent: v ?? "" })}
-                  placeholder="Choose component..."
-                />
+                <Select
+                  value={fieldComponent || ""}
+                  onValueChange={(v) =>
+                    setFieldForm({ fieldComponent: v ?? "" })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose component..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contentTypes
+                      .filter((c) => c.kind === "component")
+                      .map((ct) => (
+                        <SelectItem key={ct.uid} value={ct.uid}>
+                          {ct.displayName}
+                          {(ct as { category?: string }).category
+                            ? ` (${(ct as { category?: string }).category})`
+                            : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
                 {contentTypes.filter((c) => c.kind === "component").length === 0 && (
                   <p className="text-xs text-amber-500">No components found. Switch to &quot;Create a new component&quot;.</p>
                 )}

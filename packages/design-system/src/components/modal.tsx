@@ -26,7 +26,7 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative z-50 w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg ${className}`}>
+        className={`relative z-50 w-full max-w-3xl rounded-lg border bg-background p-6 shadow-lg ${className}`}>
         {title && (
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{title}</h2>

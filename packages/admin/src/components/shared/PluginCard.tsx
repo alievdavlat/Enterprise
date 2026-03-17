@@ -5,7 +5,7 @@ import {
   CardTitle,
   CardDescription,
   CardFooter,
-  Toggle,
+  Switch,
   Badge,
   Button,
 } from "@enterprise/design-system";
@@ -29,7 +29,7 @@ export const PluginCard = ({ plugin, togglePlugin }: PluginCardProps) => {
             className={`p-3 rounded-xl shadow-sm ${plugin.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
             <Icon className="w-6 h-6" />
           </div>
-          <Toggle
+          <Switch
             checked={plugin.enabled}
             onCheckedChange={() => togglePlugin(plugin.id, plugin.enabled)}
           />

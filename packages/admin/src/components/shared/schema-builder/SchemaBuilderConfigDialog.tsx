@@ -6,8 +6,12 @@ import {
   Label,
   Modal,
   ScrollArea,
-  SelectWithOptions,
-  Toggle,
+  Switch,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@enterprise/design-system";
 import { GripVertical, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import type { ContentTypeSchema } from "@/types";
@@ -24,7 +28,9 @@ export interface SchemaBuilderConfigDialogProps {
     cfgEntryTitle: string;
     cfgDisplayedFields: string[];
   };
-  setConfigForm: (u: Partial<SchemaBuilderConfigDialogProps["configForm"]>) => void;
+  setConfigForm: (
+    u: Partial<SchemaBuilderConfigDialogProps["configForm"]>,
+  ) => void;
   allFieldOptions: string[];
   onSave: () => void;
 }
@@ -63,12 +69,22 @@ export function SchemaBuilderConfigDialog({
               <h4 className="text-sm font-semibold">Settings</h4>
               <div className="space-y-2">
                 <Label>Entry title</Label>
-                <SelectWithOptions
-                  options={allFieldOptions.map((f) => ({ value: f, label: f }))}
-                  value={configForm.cfgEntryTitle}
-                  onChange={(v) => setConfigForm({ cfgEntryTitle: v ?? "" })}
-                  placeholder="Select field..."
-                />
+                <Select
+                  value={configForm.cfgEntryTitle || ""}
+                  onValueChange={(v) =>
+                    setConfigForm({ cfgEntryTitle: v ?? "" })
+                  }>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select field..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allFieldOptions.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
                   Set the displayed field of your entry
                 </p>
@@ -82,8 +98,7 @@ export function SchemaBuilderConfigDialog({
                   variant="ghost"
                   size="sm"
                   onClick={() => onOpenChange(false)}
-                  className="gap-1 text-primary"
-                >
+                  className="gap-1 text-primary">
                   <Pencil className="w-3.5 h-3.5" /> Edit the content type
                 </Button>
               </div>
@@ -94,8 +109,7 @@ export function SchemaBuilderConfigDialog({
                 {configForm.cfgDisplayedFields.map((f, idx) => (
                   <div
                     key={f}
-                    className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 group"
-                  >
+                    className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 group">
                     <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span className="flex-1 text-sm font-medium">{f}</span>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -109,8 +123,7 @@ export function SchemaBuilderConfigDialog({
                           }
                         }}
                         className="p-1 rounded hover:bg-muted"
-                        disabled={idx === 0}
-                      >
+                        disabled={idx === 0}>
                         <ArrowUp className="w-3.5 h-3.5" />
                       </button>
                       <button
@@ -123,55 +136,61 @@ export function SchemaBuilderConfigDialog({
                           }
                         }}
                         className="p-1 rounded hover:bg-muted"
-                        disabled={idx === configForm.cfgDisplayedFields.length - 1}
-                      >
+                        disabled={
+                          idx === configForm.cfgDisplayedFields.length - 1
+                        }>
                         <ArrowDown className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() =>
                           setConfigForm({
-                            cfgDisplayedFields: configForm.cfgDisplayedFields.filter(
-                              (x) => x !== f
-                            ),
+                            cfgDisplayedFields:
+                              configForm.cfgDisplayedFields.filter(
+                                (x) => x !== f,
+                              ),
                           })
                         }
-                        className="p-1 rounded hover:bg-destructive/10 text-destructive"
-                      >
+                        className="p-1 rounded hover:bg-destructive/10 text-destructive">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-              <SelectWithOptions
-                options={[
-                  ...allFieldOptions
-                    .filter((f) => !configForm.cfgDisplayedFields.includes(f))
-                    .map((f) => ({ value: f, label: f })),
-                  ...(allFieldOptions.filter(
-                    (f) => !configForm.cfgDisplayedFields.includes(f)
-                  ).length === 0
-                    ? [{ value: "_", label: "All fields added", disabled: true }]
-                    : []),
-                ]}
+              <Select
                 value=""
-                onChange={(v) => {
+                onValueChange={(v) => {
                   if (
                     v &&
                     v !== "_" &&
                     !configForm.cfgDisplayedFields.includes(v)
                   ) {
                     setConfigForm({
-                      cfgDisplayedFields: [
-                        ...configForm.cfgDisplayedFields,
-                        v,
-                      ],
+                      cfgDisplayedFields: [...configForm.cfgDisplayedFields, v],
                     });
                   }
-                }}
-                placeholder="Insert another field"
-              />
+                }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Insert another field" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allFieldOptions
+                    .filter((f) => !configForm.cfgDisplayedFields.includes(f))
+                    .map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {f}
+                      </SelectItem>
+                    ))}
+                  {allFieldOptions.filter(
+                    (f) => !configForm.cfgDisplayedFields.includes(f),
+                  ).length === 0 && (
+                    <SelectItem value="_" disabled>
+                      All fields added
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-3 pt-4 border-t border-border">
@@ -226,7 +245,7 @@ export function SchemaBuilderConfigDialog({
                         Allows reviewing content before publishing
                       </p>
                     </div>
-                    <Toggle
+                    <Switch
                       checked={configForm.cfgDraft}
                       onCheckedChange={(c: boolean) =>
                         setConfigForm({ cfgDraft: c })

@@ -1,6 +1,15 @@
 "use client";
 
-import { Input, Label, SelectWithOptions, Checkbox } from "@enterprise/design-system";
+import {
+  Input,
+  Label,
+  Checkbox,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@enterprise/design-system";
 import type { FieldFormState } from "@/types/schema-builder";
 
 export interface SchemaBuilderNewFieldAdvancedTabProps {
@@ -113,17 +122,19 @@ export function SchemaBuilderNewFieldAdvancedTab({
       {fieldType === "boolean" && (
         <div className="space-y-2">
           <Label>Default value</Label>
-          <SelectWithOptions
-            options={[
-              { value: "", label: "None" },
-              { value: "true", label: "True" },
-              { value: "false", label: "False" },
-            ]}
-            value={fieldDefaultValue}
-            onChange={(v) => setFieldForm({ fieldDefaultValue: v ?? "" })}
-            placeholder="None"
-            className="w-48"
-          />
+          <Select
+            value={fieldDefaultValue || ""}
+            onValueChange={(v) => setFieldForm({ fieldDefaultValue: v ?? "" })}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="None" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">None</SelectItem>
+              <SelectItem value="true">True</SelectItem>
+              <SelectItem value="false">False</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
