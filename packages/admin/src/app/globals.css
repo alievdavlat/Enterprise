@@ -127,3 +127,18 @@
     @apply font-sans;
   }
 }
+
+.cm-theme-json .cm-editor {
+  background-color: theme("colors.background");
+  color: theme("colors.foreground");
+}
+
+.cm-theme-json .cm-gutters {
+  background-color: theme("colors.background");
+  border-right: 1px solid theme("colors.border");
+  color: theme("colors.muted.foreground");
+}
+
+.cm-theme-json .cm-activeLine {
+  background-color: theme("colors.muted.DEFAULT");
+}

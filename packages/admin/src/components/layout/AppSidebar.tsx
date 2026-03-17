@@ -24,7 +24,7 @@ import {
   SidebarMenu,
   SidebarItem,
   SidebarLabel,
-  SidebarRail,
+  SidebarTrigger,
 } from "@enterprise/design-system";
 import { useAppStore } from "@/store/app";
 import { cn } from "@/lib/utils";
@@ -44,7 +44,8 @@ const NavLink = ({
   tooltip?: string;
 }) => {
   const pathname = usePathname();
-  const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+  const active =
+    pathname === href || (href !== "/" && pathname.startsWith(href));
   const label = tooltip ?? (typeof children === "string" ? children : "");
   return (
     <SidebarItem active={active} tooltip={label}>
@@ -54,9 +55,8 @@ const NavLink = ({
           "flex items-center gap-3 px-3 py-2 rounded-md w-full text-sm font-medium transition-colors",
           active
             ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        )}
-      >
+            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        )}>
         {Icon && <Icon className="w-4 h-4 shrink-0" />}
         <span className="flex-1">{children}</span>
         {pro && <Zap className="w-3.5 h-3.5 text-primary shrink-0" />}
@@ -67,17 +67,28 @@ const NavLink = ({
 
 export function AppSidebar() {
   const user = useAppStore((s) => s.user);
-  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("") || "U";
+  const initials =
+    [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("") || "U";
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border bg-sidebar transition-all duration-300 relative">
-      <SidebarRail />
-      <SidebarHeader className="h-14 flex items-center gap-3 px-4 border-b border-border">
+    <Sidebar
+      collapsible="icon"
+      className="border-r border-border bg-sidebar transition-all duration-300 relative">
+      <SidebarHeader className="h-14 flex items-center gap-3 px-4 border-b border-border relative">
+        <SidebarTrigger
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 z-20",
+            "h-8 w-8 rounded-full border border-border bg-background shadow-sm hover:bg-muted/50",
+            "hidden md:inline-flex",
+          )}
+        />
         <Link href="/" className="flex items-center gap-3 min-w-0">
           <div className="bg-primary text-primary-foreground p-2 rounded-md shrink-0 flex items-center justify-center">
             <EnterpriseLogo className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-sm truncate">Enterprise CMS</span>
+          <span className="font-semibold text-sm truncate group-data-[collapsible=icon]:hidden">
+            Enterprise CMS
+          </span>
         </Link>
       </SidebarHeader>
 
@@ -142,14 +153,21 @@ export function AppSidebar() {
           </SidebarMenu>
         </div>
       </SidebarContent>
-      <SidebarFooter className="p-3 border-t border-border">
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold shrink-0">{initials}</div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "User"}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
+      <SidebarFooter className="p-3 border-t border-border overflow-hidden">
+        <div className="flex items-center gap-3 px-3 py-2 min-w-0 overflow-hidden">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold shrink-0">
+            {initials}
           </div>
-          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+          <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+            <p className="text-sm font-medium truncate">
+              {[user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+                "User"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user?.email || ""}
+            </p>
+          </div>
+          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 group-data-[collapsible=icon]:hidden" />
         </div>
       </SidebarFooter>
     </Sidebar>

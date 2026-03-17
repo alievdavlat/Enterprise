@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
   Input,
   Label,
@@ -13,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
   Modal,
+  Badge,
 } from "@enterprise/design-system";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app";
@@ -27,10 +29,22 @@ import {
   Layers,
   Puzzle,
   ImageIcon,
+  FileIcon,
+  FileArchive,
+  FileVideo,
+  FileAudio,
+  FileText,
   Link2,
   Search,
+  GripVertical,
 } from "lucide-react";
 import { TiptapEditor } from "./TiptapEditor";
+
+const JsonCodeEditor = dynamic(
+  () => import("@uiw/react-codemirror").then((m) => m.default),
+  { ssr: false },
+);
+import { json as jsonLang } from "@codemirror/lang-json";
 
 interface FieldRendererProps {
   field: string;
@@ -128,19 +142,23 @@ function ComponentInstanceCard({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+    <div className="rounded-2xl border border-border bg-card/40 overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md">
       <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b border-border">
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors">
-          <Layers className="w-4 h-4 text-yellow-600" />
-          {label}
-          {collapsed ? (
-            <ChevronDown className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronUp className="w-3.5 h-3.5" />
-          )}
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Layers className="w-4 h-4" />
+          </span>
+          <span className="truncate max-w-[220px]">{label}</span>
+          <span
+            className={cn(
+              "ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-muted-foreground transition-transform",
+              collapsed ? "rotate-180" : "rotate-0",
+            )}>
+            <ChevronUp className="w-3 h-3" />
+          </span>
         </button>
         {onRemove && (
           <Button
@@ -154,7 +172,7 @@ function ComponentInstanceCard({
         )}
       </div>
       {!collapsed && (
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-background/40">
           {Object.entries(schema.attributes || {}).map(
             ([subField, subConfig]: [string, any]) => {
               const type = subConfig.type;
@@ -254,7 +272,7 @@ function DynamicZoneFieldRenderer({
         return (
           <div
             key={idx}
-            className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+            className="rounded-2xl border border-border bg-card/40 overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md">
             <DynamicZoneItemHeader
               label={compSchema.displayName}
               index={idx}
@@ -263,7 +281,7 @@ function DynamicZoneFieldRenderer({
               onMoveUp={() => moveItem(idx, "up")}
               onMoveDown={() => moveItem(idx, "down")}
             />
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-background/40">
               {Object.entries(compSchema.attributes || {}).map(
                 ([subField, subConfig]: [string, any]) => {
                   const type = subConfig.type;
@@ -350,12 +368,24 @@ function RelationFieldRenderer({
   const [options, setOptions] = useState<{ id: number; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const singleVal =
-    !isMulti && value != null && value !== "" ? Number(value) : undefined;
+  const getId = (v: unknown): number | null => {
+    if (v == null) return null;
+    if (typeof v === "number") return v;
+    if (typeof v === "string") {
+      const n = Number(v);
+      return Number.isNaN(n) ? null : n;
+    }
+    if (typeof v === "object" && "id" in (v as Record<string, unknown>)) {
+      return getId((v as { id?: unknown }).id);
+    }
+    return null;
+  };
+
+  const singleVal = !isMulti ? getId(value) ?? undefined : undefined;
   const multiVal = isMulti
     ? (Array.isArray(value) ? value : value != null ? [value] : [])
-        .map((v) => Number(v))
-        .filter((n) => !Number.isNaN(n))
+        .map((v) => getId(v))
+        .filter((n): n is number => n != null)
     : [];
 
   useEffect(() => {
@@ -394,6 +424,15 @@ function RelationFieldRenderer({
     );
   }
 
+  const relationLabel =
+    relationType === "oneToOne"
+      ? "One to one"
+      : relationType === "oneToMany"
+        ? "One to many"
+        : relationType === "manyToOne"
+          ? "Many to one"
+          : "Many to many";
+
   if (isMulti) {
     const addId = (id: number) => {
       if (multiVal.includes(id)) return;
@@ -401,58 +440,156 @@ function RelationFieldRenderer({
     };
     const removeId = (id: number) => onChange(multiVal.filter((x) => x !== id));
     return (
-      <div className="max-w-md space-y-2">
-        <Select
-          value=""
-          onValueChange={(v: any) => {
-            const n = Number(v);
-            if (!Number.isNaN(n)) addId(n);
-          }}
-          disabled={loading}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {options
-                .filter((opt) => !multiVal.includes(opt.id))
-                .map((opt) => (
-                  <SelectItem key={opt.id} value={String(opt.id)}>
+      <div className="space-y-4 w-full rounded-2xl border border-border bg-card/40 p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5">
+            <Link2 className="w-3 h-3 text-primary" />
+            <span className="uppercase tracking-wide">
+              {targetSchema.displayName}
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+            <span>
+              {relationLabel} • {multiVal.length} selected
+            </span>
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {multiVal.length ? (
+            multiVal.map((id) => {
+              const opt = options.find((o) => o.id === id);
+              if (!opt) return null;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => removeId(id)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-all duration-150 hover:bg-primary/20 hover:-translate-y-0.5 active:scale-[0.97]">
+                  <span className="truncate max-w-[140px]">{opt.label}</span>
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              );
+            })
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              No related entries selected yet.
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-56 overflow-y-auto rounded-xl border border-border/60 bg-muted/10 p-2.5">
+          {loading ? (
+            <p className="col-span-full text-xs text-muted-foreground py-4 text-center">
+              Loading related entries...
+            </p>
+          ) : options.length === 0 ? (
+            <p className="col-span-full text-xs text-muted-foreground py-4 text-center">
+              No entries found in{" "}
+              <span className="font-medium">{targetSchema.displayName}</span>.
+            </p>
+          ) : (
+            options.map((opt) => {
+              const selected = multiVal.includes(opt.id);
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => (selected ? removeId(opt.id) : addId(opt.id))}
+                  className={cn(
+                    "group flex flex-col items-start gap-1 rounded-lg border px-2.5 py-2 text-left text-xs transition-all duration-150",
+                    "hover:border-primary/60 hover:bg-primary/5 hover:shadow-sm",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "active:scale-[0.98]",
+                    selected
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-border bg-background/40",
+                  )}>
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Link2 className="w-3 h-3" />
+                    <span className="uppercase tracking-wide">
+                      {targetSchema.displayName}
+                    </span>
+                  </span>
+                  <span className="text-[13px] font-medium truncate w-full">
                     {opt.label}
-                  </SelectItem>
-                ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <Select
-      value={singleVal != null ? String(singleVal) : ""}
-      onValueChange={(v: any) => onChange(v === "" ? undefined : Number(v))}
-      disabled={loading}>
-      <SelectTrigger>
-        <SelectValue
-          placeholder={
-            loading ? "Loading..." : `Select ${targetSchema.displayName}...`
-          }
-        />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          <SelectItem value="">
-            <SelectValue placeholder="Select..." />
-          </SelectItem>
-          {options.map((opt) => (
-            <SelectItem key={opt.id} value={String(opt.id)}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+    <div className="space-y-3 w-full rounded-2xl border border-border bg-card/40 p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5">
+          <Link2 className="w-3 h-3 text-primary" />
+          <span className="uppercase tracking-wide">
+            {targetSchema.displayName}
+          </span>
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+          <span>{relationLabel}</span>
+        </span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-48 overflow-y-auto rounded-xl border border-border/60 bg-muted/10 p-2.5">
+        {loading ? (
+          <p className="col-span-full text-xs text-muted-foreground py-4 text-center">
+            Loading related entries...
+          </p>
+        ) : options.length === 0 ? (
+          <p className="col-span-full text-xs text-muted-foreground py-4 text-center">
+            No entries found in{" "}
+            <span className="font-medium">{targetSchema.displayName}</span>.
+          </p>
+        ) : (
+          options.map((opt) => {
+            const selected = singleVal === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => onChange(selected ? undefined : opt.id)}
+                className={cn(
+                  "group flex flex-col items-start gap-1 rounded-lg border px-3 py-2 text-left text-xs transition-all duration-150",
+                  "hover:border-primary/60 hover:bg-primary/5 hover:shadow-sm",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "active:scale-[0.98]",
+                  selected
+                    ? "border-primary bg-primary/10 shadow-sm"
+                    : "border-border bg-background/40",
+                )}>
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Link2 className="w-3 h-3" />
+                  <span className="uppercase tracking-wide">
+                    {targetSchema.displayName}
+                  </span>
+                </span>
+                <span className="text-[13px] font-medium truncate w-full">
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+      {singleVal != null && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => onChange(undefined)}>
+          <Trash2 className="w-3.5 h-3.5" />
+          <span className="text-xs">Clear relation</span>
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -704,6 +841,22 @@ function MediaFieldRenderer({
     setEditAsset(updated);
   };
 
+  const getFileKind = (mimeOrName: string | undefined) => {
+    const v = (mimeOrName || "").toLowerCase();
+    if (!v) return "file";
+    if (isImageMime(v) || v.startsWith("image/")) return "image";
+    if (v.startsWith("video/") || v.endsWith(".mp4") || v.endsWith(".webm"))
+      return "video";
+    if (v.startsWith("audio/") || v.endsWith(".mp3") || v.endsWith(".wav"))
+      return "audio";
+    if (v.includes("pdf") || v.endsWith(".pdf")) return "pdf";
+    if (v.includes("zip") || v.includes("rar") || v.includes("7z"))
+      return "archive";
+    if (v.includes("json") || v.endsWith(".json") || v.includes("text"))
+      return "text";
+    return "file";
+  };
+
   const filteredFiles = files.filter((file) => {
     const name = String(file.name ?? "");
     const mime = String(file.mime ?? "");
@@ -718,28 +871,56 @@ function MediaFieldRenderer({
 
   return (
     <div className="max-w-3xl space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="font-medium">Selected media</span>
+          {multiple && current.length > 1 && (
+            <span className="text-[11px]">
+              Drag handles to reorder (top items appear first)
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-stretch gap-3">
         {current.length > 0 ? (
           current.map((item, i) => {
             const obj = item as Record<string, unknown>;
             const url = obj?.url as string | undefined;
             const name = (obj?.name as string) || `Asset ${i + 1}`;
-            const isImg = url && isImageMime((obj?.mime as string) || "");
+            const mime = (obj?.mime as string) || "";
+            const kind = getFileKind(mime || url);
+            const isImg = url && kind === "image";
             return (
               <div
                 key={(obj?.id ?? i) as string}
-                className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 group min-w-[220px]">
-                {isImg && url ? (
+                className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 group min-w-[260px]">
+                <div className="flex flex-col items-center gap-1">
+                  {isImg && url ? (
                   <img
                     src={getImageUrl(url)}
                     alt={name}
-                    className="h-10 w-10 rounded-md object-cover shrink-0"
+                    className="h-12 w-12 rounded-md object-cover shrink-0"
                   />
                 ) : (
-                  <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-                    <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                  </div>
+                    <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center shrink-0">
+                      {kind === "video" ? (
+                        <FileVideo className="w-5 h-5 text-primary" />
+                      ) : kind === "audio" ? (
+                        <FileAudio className="w-5 h-5 text-primary" />
+                      ) : kind === "pdf" || kind === "text" ? (
+                        <FileText className="w-5 h-5 text-primary" />
+                      ) : kind === "archive" ? (
+                        <FileArchive className="w-5 h-5 text-primary" />
+                      ) : (
+                        <FileIcon className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
                 )}
+                  <Badge
+                    variant="outline"
+                    className="mt-0.5 px-1.5 py-0.5 text-[9px] font-normal uppercase tracking-wide">
+                    {kind}
+                  </Badge>
+                </div>
                 <div className="flex flex-1 flex-col min-w-0">
                   <span className="text-sm font-medium truncate">
                     {name}
@@ -749,6 +930,38 @@ function MediaFieldRenderer({
                   </span>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {multiple && current.length > 1 && (
+                    <div className="flex items-center gap-1 mr-1 cursor-grab">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          if (i === 0) return;
+                          const next = [...current];
+                          const [moved] = next.splice(i, 1);
+                          next.splice(i - 1, 0, moved);
+                          onChange(next);
+                        }}>
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          if (i === current.length - 1) return;
+                          const next = [...current];
+                          const [moved] = next.splice(i, 1);
+                          next.splice(i + 1, 0, moved);
+                          onChange(next);
+                        }}>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
                   <Button
                     type="button"
                     variant="ghost"
@@ -787,6 +1000,7 @@ function MediaFieldRenderer({
             No media selected
           </span>
         )}
+        </div>
       </div>
       <Button
         type="button"
@@ -902,7 +1116,9 @@ function MediaFieldRenderer({
                 {filteredFiles.map((file) => {
                   const url = file.url as string | undefined;
                   const name = (file.name as string) || "File";
-                  const isImg = url && isImageMime((file.mime as string) || "");
+                  const mime = (file.mime as string) || "";
+                  const kind = getFileKind(mime || url);
+                  const isImg = url && kind === "image";
                   const selected = isSelected(file);
                   return (
                     <button
@@ -923,12 +1139,27 @@ function MediaFieldRenderer({
                         />
                       ) : (
                         <div className="h-14 w-14 rounded bg-muted flex items-center justify-center">
-                          <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                          {kind === "video" ? (
+                            <FileVideo className="w-6 h-6 text-primary" />
+                          ) : kind === "audio" ? (
+                            <FileAudio className="w-6 h-6 text-primary" />
+                          ) : kind === "pdf" || kind === "text" ? (
+                            <FileText className="w-6 h-6 text-primary" />
+                          ) : kind === "archive" ? (
+                            <FileArchive className="w-6 h-6 text-primary" />
+                          ) : (
+                            <FileIcon className="w-6 h-6 text-muted-foreground" />
+                          )}
                         </div>
                       )}
                       <span className="text-xs truncate w-full text-center">
                         {name}
                       </span>
+                      <Badge
+                        variant="outline"
+                        className="mt-0.5 px-1.5 py-0.5 text-[9px] font-normal uppercase tracking-wide">
+                        {kind}
+                      </Badge>
                     </button>
                   );
                 })}
@@ -959,8 +1190,13 @@ function DynamicZoneItemHeader({
   return (
     <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b border-border">
       <div className="flex items-center gap-2 text-sm font-medium">
-        <Puzzle className="w-4 h-4 text-purple-600" />
-        {label}
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Puzzle className="w-4 h-4" />
+        </span>
+        <span className="truncate max-w-[220px]">{label}</span>
+        <span className="text-[11px] text-muted-foreground">
+          #{index + 1} of {total}
+        </span>
       </div>
       <div className="flex items-center gap-1">
         <Button
@@ -1006,7 +1242,11 @@ export function FieldRenderer({
   const set = onChange;
 
   return (
-    <div className={cn("space-y-2", gridSpan === "full" && "col-span-full")}>
+    <div
+      className={cn(
+        "space-y-2",
+        (gridSpan === "full" || config.type === "relation") && "col-span-full",
+      )}>
       <Label className="font-semibold flex items-center gap-1">
         <span className="capitalize">{field}</span>
         {showRequired && config.required && (
@@ -1046,22 +1286,30 @@ export function FieldRenderer({
           onChange={set}
         />
       ) : config.type === "json" ? (
-        <textarea
-          className="w-full min-h-[120px] p-3 rounded-lg border border-input bg-background font-mono text-sm focus:ring-2 focus:ring-primary focus:outline-none resize-y"
-          value={
-            typeof val === "object"
-              ? JSON.stringify(val, null, 2)
-              : String(val ?? "")
-          }
-          onChange={(e) => {
-            try {
-              set(JSON.parse(e.target.value));
-            } catch {
-              set(e.target.value);
+        <div className="rounded-lg border border-input bg-background/60 text-xs font-mono overflow-hidden">
+          <JsonCodeEditor
+            value={
+              typeof val === "object"
+                ? JSON.stringify(val, null, 2)
+                : String(val ?? "")
             }
-          }}
-          placeholder="{}"
-        />
+            height="180px"
+            theme="dark"
+            extensions={[jsonLang()]}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLine: true,
+            }}
+            onChange={(code) => {
+              try {
+                set(JSON.parse(code));
+              } catch {
+                set(code);
+              }
+            }}
+            className="cm-theme-json"
+          />
+        </div>
       ) : config.type === "enumeration" && Array.isArray(config.enum) ? (
         <Select>
           <SelectTrigger className="w-[180px]">
