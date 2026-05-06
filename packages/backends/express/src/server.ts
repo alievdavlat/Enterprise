@@ -17,6 +17,8 @@ import {
   LifecycleManager,
   DocumentService,
   PermissionManager,
+  ServiceRegistry,
+  CronManager,
   buildOpenApiSpec,
 } from "@enterprise/core";
 import { createDatabaseAdapter, type DatabaseAdapter } from "@enterprise/database";
@@ -24,6 +26,11 @@ import type { EnterpriseConfig } from "@enterprise/types";
 
 import { loadSchemasFromPath } from "./loadSchemasFromPath";
 import { loadSchemasFromDb, ensureTableForSchema, persistRegistryToDb } from "./loadSchemasFromDb";
+import { loadPluginsFromPath } from "./loaders/loadPluginsFromPath";
+import { loadMiddlewaresFromPath } from "./loaders/loadMiddlewaresFromPath";
+import { loadCronFromPath } from "./loaders/loadCronFromPath";
+import { loadServicesFromPath } from "./loaders/loadServicesFromPath";
+import { loadLifecyclesFromPath } from "./loaders/loadLifecyclesFromPath";
 import { createAuthRouter } from "./routes/auth";
 import { createContentTypeRouter } from "./routes/content-types";
 import { createMediaRouter } from "./routes/media";
@@ -39,10 +46,21 @@ export class EnterpriseServer {
   private pluginRegistry: PluginRegistry;
   private lifecycleManager: LifecycleManager;
   private permissionManager: PermissionManager;
+  private serviceRegistry: ServiceRegistry;
+  private cronManager: CronManager;
   private documentService!: DocumentService;
   private db!: DatabaseAdapter;
   private config: EnterpriseConfig;
   private graphqlServer!: ApolloServer;
+  private userMiddlewareHandlers: { name: string; handler: import("express").RequestHandler }[] = [];
+  private discoveredPlugins: { registered: string[]; disabled: string[] } = { registered: [], disabled: [] };
+  private discoveredMiddlewares: { resolved: string[]; unresolved: string[]; discovered: string[] } = {
+    resolved: [],
+    unresolved: [],
+    discovered: [],
+  };
+  private discoveredCronJobs: { registered: string[]; skipped: string[] } = { registered: [], skipped: [] };
+  private discoveredServices: { registered: string[]; skipped: string[] } = { registered: [], skipped: [] };
 
   constructor(config: EnterpriseConfig) {
     this.config = config;
@@ -50,7 +68,24 @@ export class EnterpriseServer {
     this.schemaRegistry = new SchemaRegistry();
     this.lifecycleManager = new LifecycleManager();
     this.permissionManager = new PermissionManager();
+    this.serviceRegistry = new ServiceRegistry();
+    this.cronManager = new CronManager();
     this.pluginRegistry = new PluginRegistry(this as any);
+  }
+
+  /** Strapi-style accessor: app.service('api::article.article') */
+  service(uid: string) {
+    return this.serviceRegistry.get(uid);
+  }
+
+  /** Strapi-style accessor: app.plugin('upload') */
+  plugin(name: string) {
+    return this.pluginRegistry.get(name);
+  }
+
+  /** Programmatic cron access for plugins / boot scripts. */
+  get cron(): CronManager {
+    return this.cronManager;
   }
 
   async initialize(): Promise<void> {
@@ -367,6 +402,69 @@ export class EnterpriseServer {
       // Table may not exist yet on fresh install
     }
 
+    // 6) Strapi-style filesystem extensibility
+    const userProjectRoot = this.config.appPath ?? path.resolve(process.cwd(), "..");
+    try {
+      const lifecycles = await loadLifecyclesFromPath(userProjectRoot, this.lifecycleManager, this.schemaRegistry);
+      if (lifecycles.registered.length > 0) {
+        console.log(
+          `[Enterprise] Loaded lifecycles for ${lifecycles.registered.length} content type(s): ` +
+            lifecycles.registered.map((r) => r.uid).join(", "),
+        );
+      }
+    } catch (err) {
+      console.warn("[Enterprise] Lifecycles loader failed:", err);
+    }
+    try {
+      this.discoveredServices = await loadServicesFromPath(userProjectRoot, this.serviceRegistry, this);
+      if (this.discoveredServices.registered.length > 0) {
+        console.log(`[Enterprise] Loaded ${this.discoveredServices.registered.length} service(s): ${this.discoveredServices.registered.join(", ")}`);
+      }
+    } catch (err) {
+      console.warn("[Enterprise] Services loader failed:", err);
+    }
+    try {
+      this.discoveredPlugins = await loadPluginsFromPath(userProjectRoot, this.pluginRegistry, this);
+      if (this.discoveredPlugins.registered.length > 0) {
+        console.log(`[Enterprise] Loaded ${this.discoveredPlugins.registered.length} plugin(s): ${this.discoveredPlugins.registered.join(", ")}`);
+      }
+      if (this.discoveredPlugins.disabled.length > 0) {
+        console.log(`[Enterprise] Disabled plugin(s) (config): ${this.discoveredPlugins.disabled.join(", ")}`);
+      }
+    } catch (err) {
+      console.warn("[Enterprise] Plugins loader failed:", err);
+    }
+    try {
+      await this.pluginRegistry.runRegister();
+    } catch (err) {
+      console.error("[Enterprise] Plugin register() phase failed:", err);
+    }
+    try {
+      this.discoveredCronJobs = await loadCronFromPath(userProjectRoot, this.cronManager, this);
+      if (this.discoveredCronJobs.registered.length > 0) {
+        console.log(`[Enterprise] Loaded ${this.discoveredCronJobs.registered.length} cron job(s): ${this.discoveredCronJobs.registered.join(", ")}`);
+      }
+    } catch (err) {
+      console.warn("[Enterprise] Cron loader failed:", err);
+    }
+    try {
+      const middlewares = await loadMiddlewaresFromPath(userProjectRoot, this);
+      this.userMiddlewareHandlers = middlewares.handlers;
+      this.discoveredMiddlewares = {
+        resolved: middlewares.resolved,
+        unresolved: middlewares.unresolved,
+        discovered: middlewares.discovered,
+      };
+      if (middlewares.resolved.length > 0) {
+        console.log(`[Enterprise] Loaded ${middlewares.resolved.length} middleware(s) from config: ${middlewares.resolved.join(", ")}`);
+      }
+      if (middlewares.unresolved.length > 0) {
+        console.warn(`[Enterprise] Unresolved middleware(s) in config (skipped): ${middlewares.unresolved.join(", ")}`);
+      }
+    } catch (err) {
+      console.warn("[Enterprise] Middlewares loader failed:", err);
+    }
+
     // Setup Express middleware
     this.setupMiddlewares();
 
@@ -417,6 +515,17 @@ export class EnterpriseServer {
 
     // Logging
     this.app.use(morgan("combined"));
+
+    // User-defined middlewares (config/middlewares.ts + src/middlewares/*).
+    // Applied here so they run after the security/CORS/body bootstrap and
+    // before any API routers / health endpoints.
+    for (const m of this.userMiddlewareHandlers) {
+      try {
+        this.app.use(m.handler);
+      } catch (err) {
+        console.warn(`[Enterprise:Middlewares] Failed to apply "${m.name}":`, err);
+      }
+    }
 
     // Health check
     this.app.get("/health", (req, res) => {
@@ -562,6 +671,7 @@ export class EnterpriseServer {
       createAdminRouter(this.schemaRegistry, this.db, {
         onSchemaRegistered: (schema) => registerSchema?.(schema),
         getProjectRoot: () => projectRoot,
+        getDiscoveredArtifacts: () => this.getDiscoveredArtifacts(),
       }),
     );
 
@@ -618,6 +728,20 @@ export class EnterpriseServer {
   }
 
   async start(): Promise<void> {
+    // Plugin bootstrap() runs after middlewares + routes are wired so plugins
+    // can extend the server (e.g. add routes via app or interact with DB).
+    try {
+      await this.pluginRegistry.runBootstrap();
+    } catch (err) {
+      console.error("[Enterprise] Plugin bootstrap() phase failed:", err);
+    }
+    // Start scheduled jobs once the server is about to come online.
+    try {
+      await this.cronManager.start();
+    } catch (err) {
+      console.warn("[Enterprise] Cron start failed:", err);
+    }
+
     const port = this.config.port || 9390;
     const host = this.config.server?.host || "0.0.0.0";
     const displayHost = host === "0.0.0.0" ? "localhost" : host;
@@ -648,8 +772,35 @@ export class EnterpriseServer {
   }
 
   async stop(): Promise<void> {
+    try {
+      this.cronManager.stop();
+    } catch {}
+    try {
+      await this.pluginRegistry.runDestroy();
+    } catch (err) {
+      console.warn("[Enterprise] Plugin destroy() phase failed:", err);
+    }
     await this.db.disconnect();
     console.log("[Enterprise] Server stopped");
+  }
+
+  /** Diagnostics for admin UI: discovered plugins/middlewares/cron/services. */
+  getDiscoveredArtifacts(): {
+    plugins: { registered: string[]; disabled: string[] };
+    middlewares: { resolved: string[]; unresolved: string[]; discovered: string[] };
+    cron: { name: string; schedule: string; running: boolean }[];
+    services: { registered: string[]; skipped: string[] };
+  } {
+    return {
+      plugins: this.discoveredPlugins,
+      middlewares: this.discoveredMiddlewares,
+      cron: this.cronManager.list().map((j: import("@enterprise/core").CronJob) => ({
+        name: j.name,
+        schedule: j.schedule,
+        running: this.cronManager.isRunning(j.name),
+      })),
+      services: this.discoveredServices,
+    };
   }
 }
 

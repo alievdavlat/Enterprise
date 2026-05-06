@@ -172,6 +172,101 @@ program
   });
 
 program
+  .command("generate <kind> <name>")
+  .alias("g")
+  .description("Generate a plugin, middleware, api, service, lifecycles, or cron entry")
+  .action(async (kind: string, name: string) => {
+    const cwd = process.cwd();
+    const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "-");
+    const ts = (filepath: string, body: string) => {
+      fs.ensureDirSync(path.dirname(filepath));
+      if (fs.existsSync(filepath)) {
+        console.error(chalk.red(`Already exists: ${filepath}`));
+        process.exit(1);
+      }
+      fs.writeFileSync(filepath, body, "utf8");
+      console.log(chalk.green("created  ") + path.relative(cwd, filepath));
+    };
+    switch (kind) {
+      case "plugin": {
+        const dir = path.join(cwd, "src", "plugins", safeName);
+        ts(
+          path.join(dir, "index.ts"),
+          `export default {\n  name: "${safeName}",\n  version: "0.1.0",\n  register(_app) {},\n  bootstrap(_app) {},\n};\n`,
+        );
+        break;
+      }
+      case "middleware": {
+        const file = path.join(cwd, "src", "middlewares", `${safeName}.ts`);
+        ts(
+          file,
+          `import type { Request, Response, NextFunction } from "express";\n\nexport default function ${safeName.replace(/[-_](.)/g, (_, c) => c.toUpperCase())}Middleware(_config?: Record<string, unknown>) {\n  return (_req: Request, _res: Response, next: NextFunction) => {\n    next();\n  };\n}\n`,
+        );
+        console.log(chalk.yellow('Add "global::' + safeName + '" to config/middlewares.ts to enable.'));
+        break;
+      }
+      case "api": {
+        const dir = path.join(cwd, "src", "api", safeName);
+        const ctDir = path.join(dir, "content-types", safeName);
+        const svcDir = path.join(dir, "services");
+        ts(
+          path.join(ctDir, "schema.json"),
+          JSON.stringify(
+            {
+              kind: "collectionType",
+              collectionName: safeName + "s",
+              info: { displayName: safeName, singularName: safeName, pluralName: safeName + "s" },
+              options: { draftAndPublish: true },
+              attributes: { title: { type: "string", required: true } },
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        ts(
+          path.join(ctDir, "lifecycles.ts"),
+          `export default {\n  async beforeCreate(_ctx: unknown) {},\n  async afterCreate(_ctx: unknown) {},\n};\n`,
+        );
+        ts(
+          path.join(svcDir, `${safeName}.ts`),
+          `export default ({ app: _app }: { app: unknown }) => ({\n  async findCustom() {\n    return [];\n  },\n});\n`,
+        );
+        break;
+      }
+      case "service": {
+        const [apiName, serviceName = safeName] = safeName.split(".");
+        const dir = path.join(cwd, "src", "api", apiName, "services");
+        ts(
+          path.join(dir, `${serviceName}.ts`),
+          `export default ({ app: _app }: { app: unknown }) => ({\n  async ${serviceName}() {\n    return null;\n  },\n});\n`,
+        );
+        break;
+      }
+      case "lifecycles": {
+        const file = path.join(cwd, "src", "api", safeName, "content-types", safeName, "lifecycles.ts");
+        ts(
+          file,
+          `export default {\n  async beforeCreate(_ctx: unknown) {},\n  async afterCreate(_ctx: unknown) {},\n};\n`,
+        );
+        break;
+      }
+      case "cron": {
+        const file = path.join(cwd, "src", "cron", `${safeName}.ts`);
+        ts(
+          file,
+          `export default ({ app: _app }: { app: unknown }) => ({\n  schedule: "0 * * * *",\n  async task({ app: _ }: { app: unknown }) {\n    console.log("[cron:${safeName}] tick");\n  },\n});\n`,
+        );
+        break;
+      }
+      default:
+        console.error(
+          chalk.red(`Unknown generator "${kind}". Use one of: plugin | middleware | api | service | lifecycles | cron`),
+        );
+        process.exit(1);
+    }
+  });
+
+program
   .command("start")
   .description("Start production server (run from project directory)")
   .action(() => {

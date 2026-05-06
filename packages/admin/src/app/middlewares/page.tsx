@@ -1,14 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Settings2 } from "lucide-react";
+import { Settings2, Folder } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@enterprise/design-system";
 import { MiddlewareCard } from "@/components/shared";
 import { MIDDLEWARES } from "@/consts/plugin-middleware.const";
 import { api } from "@/lib/api";
 
+type DiscoveredMiddlewares = {
+  resolved: string[];
+  unresolved: string[];
+  discovered: string[];
+};
+
 export default function MiddlewaresManager() {
   const [middlewares, setMiddlewares] = useState(MIDDLEWARES);
+  const [discovered, setDiscovered] = useState<DiscoveredMiddlewares | null>(null);
 
   useEffect(() => {
     api
@@ -21,6 +36,10 @@ export default function MiddlewaresManager() {
         );
       })
       .catch(() => {});
+    api
+      .get("/admin/system")
+      .then((r) => setDiscovered(r.data?.data?.middlewares ?? null))
+      .catch(() => setDiscovered(null));
   }, []);
 
   const toggleMiddleware = async (id: string, current: boolean) => {
@@ -69,6 +88,83 @@ export default function MiddlewaresManager() {
           );
         })}
       </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Folder className="w-4 h-4" /> User middlewares (auto-discovered)
+          </CardTitle>
+          <CardDescription>
+            Add a file to <code>src/middlewares/&lt;name&gt;.ts</code> and reference it as{" "}
+            <code>"global::&lt;name&gt;"</code> in <code>config/middlewares.ts</code>. Built-ins live
+            under the <code>enterprise::</code> namespace.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!discovered ? (
+            <p className="text-sm text-muted-foreground">No data yet.</p>
+          ) : (
+            <>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                  Files in <code>src/middlewares/</code>
+                </p>
+                {discovered.discovered.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    None.{" "}
+                    <code className="bg-muted px-1 py-0.5 rounded">
+                      npx create-enterprise-app generate middleware request-id
+                    </code>
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {discovered.discovered.map((name) => (
+                      <Badge key={name} className="bg-sky-500/10 text-sky-600 border-sky-500/30 border">
+                        {name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                  Resolved (active)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {discovered.resolved.map((name) => (
+                    <Badge
+                      key={name}
+                      className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 border font-mono text-xs"
+                    >
+                      {name}
+                    </Badge>
+                  ))}
+                  {discovered.resolved.length === 0 && (
+                    <span className="text-sm text-muted-foreground">None</span>
+                  )}
+                </div>
+              </div>
+              {discovered.unresolved.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                    Unresolved (skipped)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {discovered.unresolved.map((name) => (
+                      <Badge
+                        key={name}
+                        className="bg-amber-500/10 text-amber-600 border-amber-500/30 border font-mono text-xs"
+                      >
+                        {name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

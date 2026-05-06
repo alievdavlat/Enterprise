@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@enterprise/design-system";
-import { Blocks } from "lucide-react";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from "@enterprise/design-system";
+import { Blocks, Folder } from "lucide-react";
 import { toast } from "sonner";
 import { PLUGINS } from "@/consts/plugin-middleware.const";
 import { PluginCard } from "@/components/shared";
 import { api } from "@/lib/api";
 
+type DiscoveredPlugins = { registered: string[]; disabled: string[] };
+
 export default function PluginsManager() {
   const [plugins, setPlugins] = useState(PLUGINS);
+  const [discovered, setDiscovered] = useState<DiscoveredPlugins | null>(null);
 
   useEffect(() => {
     api
@@ -22,6 +25,10 @@ export default function PluginsManager() {
         );
       })
       .catch(() => {});
+    api
+      .get("/admin/system")
+      .then((r) => setDiscovered(r.data?.data?.plugins ?? null))
+      .catch(() => setDiscovered(null));
   }, []);
 
   const togglePlugin = async (id: string, current: boolean) => {
@@ -72,6 +79,41 @@ export default function PluginsManager() {
           );
         })}
       </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Folder className="w-4 h-4" /> User plugins (auto-discovered)
+          </CardTitle>
+          <CardDescription>
+            Drop a plugin into <code>src/plugins/&lt;name&gt;/index.ts</code> and toggle it from{" "}
+            <code>config/plugins.ts</code>. Reloads on next server start.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!discovered ||
+          (discovered.registered.length === 0 && discovered.disabled.length === 0) ? (
+            <p className="text-sm text-muted-foreground">
+              No user plugins detected. Run{" "}
+              <code className="bg-muted px-1.5 py-0.5 rounded">npx create-enterprise-app generate plugin my-plugin</code>{" "}
+              to scaffold one.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {discovered.registered.map((name) => (
+                <Badge key={name} className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 border">
+                  {name}
+                </Badge>
+              ))}
+              {discovered.disabled.map((name) => (
+                <Badge key={name} variant="secondary" className="opacity-70 line-through">
+                  {name}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -22,10 +22,33 @@ export function createAdminRouter(
     onSchemaRegistered?: (schema: ContentTypeSchema) => void;
     /** If set, schemas are synced to project schema/ folder (schema-as-code for deploy). */
     getProjectRoot?: () => string;
+    /** Discovered runtime artifacts (plugins, middlewares, cron, services). */
+    getDiscoveredArtifacts?: () => {
+      plugins: { registered: string[]; disabled: string[] };
+      middlewares: { resolved: string[]; unresolved: string[]; discovered: string[] };
+      cron: { name: string; schedule: string; running: boolean }[];
+      services: { registered: string[]; skipped: string[] };
+    };
   },
 ): Router {
   const router = Router();
   const getProjectRoot = options?.getProjectRoot;
+  const getDiscoveredArtifacts = options?.getDiscoveredArtifacts;
+
+  // ---- System / Discovered artifacts ----
+  router.get("/system", (_req: Request, res: Response) => {
+    if (!getDiscoveredArtifacts) {
+      return res.json({
+        data: {
+          plugins: { registered: [], disabled: [] },
+          middlewares: { resolved: [], unresolved: [], discovered: [] },
+          cron: [],
+          services: { registered: [], skipped: [] },
+        },
+      });
+    }
+    res.json({ data: getDiscoveredArtifacts() });
+  });
 
 
   /**

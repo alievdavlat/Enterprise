@@ -22,6 +22,7 @@ import {
   FileJson,
   History,
   BookOpen,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +106,9 @@ export function SettingsSidebar() {
             </NavLink>
             <NavLink href="/settings/content-history" icon={History} pro>
               Content History
+            </NavLink>
+            <NavLink href="/settings/cron" icon={Clock}>
+              Cron jobs
             </NavLink>
           </div>
         </div>

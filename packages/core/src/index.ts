@@ -37,3 +37,9 @@ export {
   type IEmailService,
   type SendOptions,
 } from "./email/EmailService";
+export { CronManager, type CronJob } from "./cron/CronManager";
+export {
+  ServiceRegistry,
+  type Service,
+  type ServiceFactory,
+} from "./services/ServiceRegistry";
