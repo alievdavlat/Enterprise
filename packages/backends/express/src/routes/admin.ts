@@ -821,6 +821,300 @@ export function createAdminRouter(
     }
   });
 
+  // ---- Plugins (state in core_store, key: admin::plugins) ----
+
+  const PLUGINS_STORE_KEY = "admin::plugins";
+
+  router.get("/plugins", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const row = await db.findOneBy(STORE_TABLE, { key: PLUGINS_STORE_KEY });
+      let state: Record<string, boolean> = {};
+      if (row && (row as { value?: string }).value) {
+        try { state = JSON.parse((row as { value: string }).value); } catch { state = {}; }
+      }
+      res.json({ data: state });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/plugins/toggle", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { plugin, enabled } = req.body || {};
+      if (!plugin) return res.status(400).json({ error: { message: "plugin is required" } });
+      const row = await db.findOneBy(STORE_TABLE, { key: PLUGINS_STORE_KEY });
+      let state: Record<string, boolean> = {};
+      if (row && (row as { value?: string }).value) {
+        try { state = JSON.parse((row as { value: string }).value); } catch { state = {}; }
+      }
+      state[plugin] = !!enabled;
+      const valueStr = JSON.stringify(state);
+      if (row) {
+        await db.update(STORE_TABLE, (row as { id: number }).id, { value: valueStr });
+      } else {
+        await db.create(STORE_TABLE, { key: PLUGINS_STORE_KEY, value: valueStr, type: null, environment: null });
+      }
+      res.json({ data: state });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- Middlewares (state in core_store, key: admin::middlewares) ----
+
+  const MIDDLEWARES_STORE_KEY = "admin::middlewares";
+
+  router.get("/middlewares", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const row = await db.findOneBy(STORE_TABLE, { key: MIDDLEWARES_STORE_KEY });
+      let state: Record<string, boolean> = {};
+      if (row && (row as { value?: string }).value) {
+        try { state = JSON.parse((row as { value: string }).value); } catch { state = {}; }
+      }
+      res.json({ data: state });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/middlewares/toggle", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { middleware, enabled } = req.body || {};
+      if (!middleware) return res.status(400).json({ error: { message: "middleware is required" } });
+      const row = await db.findOneBy(STORE_TABLE, { key: MIDDLEWARES_STORE_KEY });
+      let state: Record<string, boolean> = {};
+      if (row && (row as { value?: string }).value) {
+        try { state = JSON.parse((row as { value: string }).value); } catch { state = {}; }
+      }
+      state[middleware] = !!enabled;
+      const valueStr = JSON.stringify(state);
+      if (row) {
+        await db.update(STORE_TABLE, (row as { id: number }).id, { value: valueStr });
+      } else {
+        await db.create(STORE_TABLE, { key: MIDDLEWARES_STORE_KEY, value: valueStr, type: null, environment: null });
+      }
+      res.json({ data: state });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- Email Templates (Settings > Users & Permissions > Email templates) ----
+
+  router.get("/email-templates", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await db.findMany("enterprise_email_templates", {
+        pagination: { page: 1, pageSize: 100 },
+      });
+      res.json({ data: result.data, meta: result.meta });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/email-templates", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name, displayName, subject, body, fromName, fromEmail, responseEmail } = req.body || {};
+      if (!name || !subject || !body) {
+        return res.status(400).json({ error: { message: "name, subject, body are required" } });
+      }
+      const existing = await db.findOneBy("enterprise_email_templates", { name });
+      if (existing) {
+        await db.update("enterprise_email_templates", (existing as { id: number }).id, {
+          displayName: displayName || name,
+          subject,
+          body,
+          fromName: fromName ?? null,
+          fromEmail: fromEmail ?? null,
+          responseEmail: responseEmail ?? null,
+        });
+        const updated = await db.findOne("enterprise_email_templates", (existing as { id: number }).id);
+        return res.json({ data: updated });
+      }
+      const tpl = await db.create("enterprise_email_templates", {
+        name,
+        displayName: displayName || name,
+        subject,
+        body,
+        fromName: fromName ?? null,
+        fromEmail: fromEmail ?? null,
+        responseEmail: responseEmail ?? null,
+      });
+      res.status(201).json({ data: tpl });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put("/email-templates/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      const payload: Record<string, unknown> = {};
+      const { displayName, subject, body, fromName, fromEmail, responseEmail } = req.body || {};
+      if (displayName !== undefined) payload.displayName = displayName;
+      if (subject !== undefined) payload.subject = subject;
+      if (body !== undefined) payload.body = body;
+      if (fromName !== undefined) payload.fromName = fromName;
+      if (fromEmail !== undefined) payload.fromEmail = fromEmail;
+      if (responseEmail !== undefined) payload.responseEmail = responseEmail;
+      if (Object.keys(payload).length > 0) {
+        await db.update("enterprise_email_templates", id, payload);
+      }
+      const updated = await db.findOne("enterprise_email_templates", id);
+      res.json({ data: updated });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete("/email-templates/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      await db.delete("enterprise_email_templates", id);
+      res.json({ data: { id } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- Users & Permissions: Advanced settings (store-based) ----
+
+  const USERS_PERMISSIONS_KEY = "admin::users-permissions::advanced";
+
+  router.get("/users-permissions/advanced", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const row = await db.findOneBy(STORE_TABLE, { key: USERS_PERMISSIONS_KEY });
+      let value: Record<string, unknown> = {
+        allowRegister: true,
+        defaultRole: "authenticated",
+        emailConfirmation: false,
+        resetPasswordPage: "",
+        emailConfirmationRedirection: "",
+        uniqueEmail: true,
+      };
+      if (row && (row as { value?: string }).value) {
+        try { value = { ...value, ...JSON.parse((row as { value: string }).value) }; } catch {}
+      }
+      res.json({ data: value });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/users-permissions/advanced", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const valueStr = JSON.stringify(req.body || {});
+      const row = await db.findOneBy(STORE_TABLE, { key: USERS_PERMISSIONS_KEY });
+      if (row) {
+        await db.update(STORE_TABLE, (row as { id: number }).id, { value: valueStr });
+      } else {
+        await db.create(STORE_TABLE, { key: USERS_PERMISSIONS_KEY, value: valueStr, type: null, environment: null });
+      }
+      res.json({ data: req.body });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- Users: edit / delete ----
+
+  router.put("/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      const { email, username, firstName, lastName, role, isActive } = req.body || {};
+      const payload: Record<string, unknown> = {};
+      if (email !== undefined) payload.email = email;
+      if (username !== undefined) payload.username = username;
+      if (firstName !== undefined) payload.firstName = firstName;
+      if (lastName !== undefined) payload.lastName = lastName;
+      if (role !== undefined) payload.role = role;
+      if (isActive !== undefined) payload.isActive = !!isActive;
+      if (Object.keys(payload).length > 0) {
+        await db.update("enterprise_users", id, payload);
+      }
+      const user = await db.findOne("enterprise_users", id) as Record<string, unknown> | null;
+      if (user) {
+        const { password: _, ...safe } = user as Record<string, unknown> & { password?: string };
+        return res.json({ data: safe });
+      }
+      res.json({ data: null });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete("/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      await db.delete("enterprise_users", id);
+      res.json({ data: { id } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- Content History / Versioning ----
+
+  router.get("/content-history", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const uid = req.query.uid as string | undefined;
+      const documentId = req.query.documentId as string | undefined;
+      const entryId = req.query.entryId ? Number(req.query.entryId) : undefined;
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 25));
+      const filters: Record<string, unknown> = {};
+      if (uid) filters.uid = uid;
+      if (documentId) filters.documentId = documentId;
+      if (entryId !== undefined) filters.entryId = entryId;
+      const result = await db.findMany("enterprise_content_history", {
+        filters: Object.keys(filters).length > 0 ? filters : undefined,
+        pagination: { page, pageSize },
+        sort: [{ field: "created_at", direction: "desc" }],
+      });
+      res.json({ data: result.data, meta: result.meta });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/content-history/:id/restore", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      const version = await db.findOne("enterprise_content_history", id) as Record<string, unknown> | null;
+      if (!version) {
+        return res.status(404).json({ error: { message: "Version not found" } });
+      }
+      const uid = version.uid as string;
+      const schema = schemaRegistry.get(uid);
+      if (!schema) {
+        return res.status(404).json({ error: { message: "Content type not found" } });
+      }
+      const data = typeof version.data === "string" ? JSON.parse(version.data as string) : version.data;
+      const entryId = version.entryId as number | null;
+      const { id: _id, documentId: _did, ...rest } = (data || {}) as Record<string, unknown>;
+      let restored: unknown;
+      if (entryId) {
+        await db.update(schema.collectionName, entryId, rest);
+        restored = await db.findOne(schema.collectionName, entryId);
+      } else {
+        restored = await db.create(schema.collectionName, rest);
+      }
+      res.json({ data: restored });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete("/content-history/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      await db.delete("enterprise_content_history", id);
+      res.json({ data: { id } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // ---- RBAC Permissions ----
 
   router.get("/roles/:id/permissions", async (req: Request, res: Response, next: NextFunction) => {

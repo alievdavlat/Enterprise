@@ -15,6 +15,43 @@ function ensureDocumentId(row: Record<string, unknown>): Record<string, unknown>
   return { ...row, documentId: row.documentId ?? String(row.id ?? "") };
 }
 
+async function recordHistory(
+  db: DatabaseAdapter,
+  uid: string,
+  snapshot: Record<string, unknown> | null,
+  status: string,
+  user?: { id?: number; email?: string } | null,
+): Promise<void> {
+  if (!snapshot) return;
+  try {
+    await db.create("enterprise_content_history", {
+      uid,
+      documentId: typeof snapshot.documentId === "string" ? snapshot.documentId : null,
+      entryId: typeof snapshot.id === "number" ? snapshot.id : null,
+      data: JSON.stringify(snapshot),
+      status,
+      userId: user?.id ?? null,
+      userEmail: user?.email ?? null,
+    });
+  } catch {
+    // history is best-effort – don't block the main operation
+  }
+}
+
+async function fetchEntryByIdOrDocId(
+  db: DatabaseAdapter,
+  collectionName: string,
+  id: string | number,
+): Promise<Record<string, unknown> | null> {
+  if (typeof id === "string" && looksLikeDocumentId(id)) {
+    const row = await db.findOneBy(collectionName, { documentId: id });
+    return row as Record<string, unknown> | null;
+  }
+  const idVal = Number(id) || id;
+  const row = await db.findOne(collectionName, idVal as number);
+  return row as Record<string, unknown> | null;
+}
+
 interface FieldConfig {
   type?: string;
   required?: boolean;
@@ -388,6 +425,7 @@ export function createContentTypeRouter(
             }
 
             await ensureTableForSchema(db, schema);
+            const previous = await fetchEntryByIdOrDocId(db, schema.collectionName, id);
             await lifecycleManager.run("beforeUpdate", {
               model: uid,
               action: "beforeUpdate",
@@ -403,6 +441,8 @@ export function createContentTypeRouter(
               const idVal = Number(id) || id;
               updated = await db.update(schema.collectionName, idVal, validatedData);
             }
+            const reqUser = (req as Request & { user?: { id?: number; email?: string } }).user ?? null;
+            await recordHistory(db, uid, previous, "updated", reqUser);
             const withDocId = ensureDocumentId(updated);
             const afterCtx = await lifecycleManager.run("afterUpdate", {
               model: uid,
@@ -466,6 +506,7 @@ export function createContentTypeRouter(
             try {
               const idRaw = req.params.id;
               const id = (Array.isArray(idRaw) ? idRaw[0] : idRaw) ?? "";
+              const previous = await fetchEntryByIdOrDocId(db, schema.collectionName, id);
               let updated: Record<string, unknown>;
               if (looksLikeDocumentId(id)) {
                 updated = (await documentService.documents(uid).publish({
@@ -479,6 +520,8 @@ export function createContentTypeRouter(
                   { publishedAt: new Date().toISOString() },
                 );
               }
+              const reqUser = (req as Request & { user?: { id?: number; email?: string } }).user ?? null;
+              await recordHistory(db, uid, previous, "published", reqUser);
               res.json({ data: ensureDocumentId(updated) });
             } catch (err) {
               next(err);
@@ -492,6 +535,7 @@ export function createContentTypeRouter(
             try {
               const idRaw = req.params.id;
               const id = (Array.isArray(idRaw) ? idRaw[0] : idRaw) ?? "";
+              const previous = await fetchEntryByIdOrDocId(db, schema.collectionName, id);
               let updated: Record<string, unknown>;
               if (looksLikeDocumentId(id)) {
                 updated = (await documentService.documents(uid).unpublish({
@@ -503,6 +547,8 @@ export function createContentTypeRouter(
                   publishedAt: null,
                 });
               }
+              const reqUser = (req as Request & { user?: { id?: number; email?: string } }).user ?? null;
+              await recordHistory(db, uid, previous, "unpublished", reqUser);
               res.json({ data: ensureDocumentId(updated) });
             } catch (err) {
               next(err);
@@ -569,6 +615,10 @@ export function createContentTypeRouter(
               result = (await documentService
                 .documents(uid)
                 .create({ data: validatedData })) as unknown as Record<string, unknown>;
+            }
+            if (first) {
+              const reqUser = (req as Request & { user?: { id?: number; email?: string } }).user ?? null;
+              await recordHistory(db, uid, first, "updated", reqUser);
             }
             res.json({ data: stripPrivateFields(ensureDocumentId(result), attrs) });
           } catch (err) {

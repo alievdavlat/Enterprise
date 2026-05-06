@@ -20,6 +20,8 @@ import {
   FileText,
   Wrench,
   FileJson,
+  History,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +99,12 @@ export function SettingsSidebar() {
             </NavLink>
             <NavLink href="/settings/webhooks" icon={Webhook}>
               Webhooks
+            </NavLink>
+            <NavLink href="/settings/api-docs" icon={BookOpen}>
+              API Documentation
+            </NavLink>
+            <NavLink href="/settings/content-history" icon={History} pro>
+              Content History
             </NavLink>
           </div>
         </div>

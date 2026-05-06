@@ -1,20 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { MiddlewareCard } from "@/components/shared";
 import { MIDDLEWARES } from "@/consts/plugin-middleware.const";
+import { api } from "@/lib/api";
 
 export default function MiddlewaresManager() {
   const [middlewares, setMiddlewares] = useState(MIDDLEWARES);
 
-  const toggleMiddleware = (id: string, current: boolean) => {
-    setMiddlewares(
-      middlewares.map((m) => (m.id === id ? { ...m, enabled: !current } : m)),
+  useEffect(() => {
+    api
+      .get("/admin/middlewares")
+      .then((res) => {
+        const state = (res.data?.data ?? {}) as Record<string, boolean>;
+        if (Object.keys(state).length === 0) return;
+        setMiddlewares((prev) =>
+          prev.map((m) => (m.id in state ? { ...m, enabled: state[m.id] } : m)),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleMiddleware = async (id: string, current: boolean) => {
+    const next = !current;
+    setMiddlewares((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, enabled: next } : m)),
     );
-    toast.success(`${current ? "Disabled" : "Enabled"} middleware: ${id}`);
-    // api.post('/admin/middlewares/toggle', { middleware: id, enabled: !current })
+    try {
+      await api.post("/admin/middlewares/toggle", {
+        middleware: id,
+        enabled: next,
+      });
+      toast.success(`${next ? "Enabled" : "Disabled"} middleware: ${id}`);
+    } catch (e) {
+      setMiddlewares((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, enabled: current } : m)),
+      );
+      toast.error(`Failed to ${next ? "enable" : "disable"} middleware: ${id}`);
+    }
   };
 
   return (

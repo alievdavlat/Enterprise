@@ -1,21 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@enterprise/design-system";
 import { Blocks } from "lucide-react";
 import { toast } from "sonner";
 import { PLUGINS } from "@/consts/plugin-middleware.const";
 import { PluginCard } from "@/components/shared";
+import { api } from "@/lib/api";
 
 export default function PluginsManager() {
   const [plugins, setPlugins] = useState(PLUGINS);
 
-  const togglePlugin = (id: string, current: boolean) => {
-    setPlugins(
-      plugins.map((p) => (p.id === id ? { ...p, enabled: !current } : p)),
+  useEffect(() => {
+    api
+      .get("/admin/plugins")
+      .then((res) => {
+        const state = (res.data?.data ?? {}) as Record<string, boolean>;
+        if (Object.keys(state).length === 0) return;
+        setPlugins((prev) =>
+          prev.map((p) => (p.id in state ? { ...p, enabled: state[p.id] } : p)),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  const togglePlugin = async (id: string, current: boolean) => {
+    const next = !current;
+    setPlugins((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, enabled: next } : p)),
     );
-    toast.success(`${current ? "Disabled" : "Enabled"} plugin: ${id}`);
-    // api.post('/admin/plugins/toggle', { plugin: id, enabled: !current })
+    try {
+      await api.post("/admin/plugins/toggle", { plugin: id, enabled: next });
+      toast.success(`${next ? "Enabled" : "Disabled"} plugin: ${id}`);
+    } catch (e) {
+      setPlugins((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, enabled: current } : p)),
+      );
+      toast.error(`Failed to ${next ? "enable" : "disable"} plugin: ${id}`);
+    }
   };
 
   return (

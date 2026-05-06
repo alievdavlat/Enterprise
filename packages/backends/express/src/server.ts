@@ -274,6 +274,40 @@ export class EnterpriseServer {
       console.log("[Enterprise] Table enterprise_media_folders created");
     }
 
+    // Email templates (Settings > Users & Permissions > Email templates)
+    if (!(await this.db.tableExists("enterprise_email_templates"))) {
+      await this.db.createTable("enterprise_email_templates", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "displayName", type: "string", nullable: false },
+          { name: "subject", type: "string", nullable: false },
+          { name: "body", type: "text", nullable: false },
+          { name: "fromName", type: "string", nullable: true },
+          { name: "fromEmail", type: "string", nullable: true },
+          { name: "responseEmail", type: "string", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_email_templates created");
+    }
+
+    // Content history / versioning (Strapi v5 Enterprise: revision per update/publish)
+    if (!(await this.db.tableExists("enterprise_content_history"))) {
+      await this.db.createTable("enterprise_content_history", {
+        columns: [
+          { name: "uid", type: "string", nullable: false },
+          { name: "documentId", type: "string", nullable: true },
+          { name: "entryId", type: "integer", nullable: true },
+          { name: "data", type: "text", nullable: false },
+          { name: "status", type: "string", nullable: true },
+          { name: "userId", type: "integer", nullable: true },
+          { name: "userEmail", type: "string", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_content_history created");
+    }
+
     this.documentService = new DocumentService(
       this.schemaRegistry,
       this.db,
