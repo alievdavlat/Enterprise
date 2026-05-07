@@ -1,174 +1,255 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Database,
   Wrench,
-  Blocks,
-  Settings,
   Image,
-  Zap,
-  ClipboardList,
-  Shield,
-  Users,
-  ChevronDown,
+  Settings2,
+  Boxes,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarItem,
-  SidebarLabel,
   SidebarTrigger,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@enterprise/design-system";
 import { useAppStore } from "@/store/app";
 import { cn } from "@/lib/utils";
 import { EnterpriseLogo } from "@/components/EnterpriseLogo";
+import NavMenu from "./NavMenu";
+import { NavUser } from "./NavUsers";
+import type { NavMenuItemProps } from "./NavMenuItem";
 
-const NavLink = ({
-  href,
-  children,
-  icon: Icon,
-  pro,
-  tooltip,
-}: {
-  href: string;
-  children: React.ReactNode;
-  icon?: React.ElementType;
-  pro?: boolean;
-  tooltip?: string;
-}) => {
-  const pathname = usePathname();
-  const active =
-    pathname === href || (href !== "/" && pathname.startsWith(href));
-  const label = tooltip ?? (typeof children === "string" ? children : "");
-  return (
-    <SidebarItem active={active} tooltip={label}>
-      <Link
-        href={href}
-        className={cn(
-          "flex items-center gap-3 px-3 py-2 rounded-md w-full text-sm font-medium transition-colors",
-          active
-            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        )}>
-        {Icon && <Icon className="w-4 h-4 shrink-0" />}
-        <span className="flex-1">{children}</span>
-        {pro && <Zap className="w-3.5 h-3.5 text-primary shrink-0" />}
-      </Link>
-    </SidebarItem>
-  );
-};
+const navigation = [
+  {
+    href: "/",
+    icon: BarChart3,
+    children: "Dashboard",
+    id: "dashboard",
+    pro: false,
+    tooltip: "Dashboard",
+  },
+  "Content",
+  {
+    href: "/data-manager",
+    icon: Database,
+    children: "Data Manager",
+    id: "data-manager",
+    pro: false,
+    tooltip: "Data Manager",
+  },
+  {
+    href: "/schema-builder",
+    icon: Wrench,
+    children: "Schema Builder",
+    id: "schema-builder",
+    pro: false,
+    tooltip: "Schema Builder",
+  },
+  {
+    href: "/media",
+    icon: Image,
+    children: "Asset Gallery",
+    id: "media",
+    pro: false,
+    tooltip: "Asset Gallery",
+  },
+  "Extend",
+  {
+    href: "/marketplace",
+    icon: Boxes,
+    children: "Plugins & Tools",
+    id: "marketplace",
+    pro: false,
+    tooltip: "Plugins, middlewares, extensions, cron jobs, lifecycles",
+  },
+];
+
+const footerNavigation = [
+  {
+    href: "/settings",
+    icon: Settings2,
+    children: "Settings",
+    id: "settings",
+    pro: false,
+  },
+];
 
 export function AppSidebar() {
   const user = useAppStore((s) => s.user);
-  const initials =
-    [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("") || "U";
+
+  const navigationGroups = (
+    navigation as Array<
+      | string
+      | {
+          href: string;
+          icon: any;
+          children: string;
+          id: string;
+          pro?: boolean;
+          tooltip?: string;
+          items?: Array<{
+            href: string;
+            icon: any;
+            children: string;
+            id: string;
+            pro?: boolean;
+            tooltip?: string;
+          }>;
+        }
+    >
+  ).reduce(
+    (acc, entry) => {
+      if (typeof entry === "string") {
+        acc.push({ title: entry, items: [] as NavMenuItemProps[] });
+        return acc;
+      }
+
+      const last = acc[acc.length - 1];
+      if (!last) {
+        acc.push({ title: undefined, items: [] as NavMenuItemProps[] });
+      }
+
+      (acc[acc.length - 1].items as NavMenuItemProps[]).push({
+        href: entry.href,
+        Icon: entry.icon,
+        children: entry.children,
+        id: entry.id,
+        pro: entry.pro,
+        tooltip: entry.tooltip,
+        items: entry.items?.map((subItem) => ({
+          href: subItem.href,
+          Icon: subItem.icon,
+          children: subItem.children,
+          id: subItem.id,
+          pro: subItem.pro,
+          tooltip: subItem.tooltip,
+        })),
+      });
+
+      return acc;
+    },
+    [] as Array<{ title?: string; items: NavMenuItemProps[] }>,
+  );
+
+  const footerNavigationGroups = (
+    footerNavigation as Array<
+      | string
+      | {
+          href: string;
+          icon: any;
+          children: string;
+          id: string;
+          pro?: boolean;
+          tooltip?: string;
+        }
+    >
+  ).reduce(
+    (acc, entry) => {
+      if (typeof entry === "string") {
+        acc.push({ title: entry, items: [] as NavMenuItemProps[] });
+        return acc;
+      }
+
+      const last = acc[acc.length - 1];
+      if (!last) {
+        acc.push({ title: undefined, items: [] as NavMenuItemProps[] });
+      }
+
+      (acc[acc.length - 1].items as NavMenuItemProps[]).push({
+        href: entry.href,
+        Icon: entry.icon,
+        children: entry.children,
+        id: entry.id,
+        pro: entry.pro,
+        tooltip: entry.tooltip,
+      });
+
+      return acc;
+    },
+    [] as Array<{ title?: string; items: NavMenuItemProps[] }>,
+  );
+
+  if (
+    navigation.length > 0 &&
+    typeof navigation[0] === "object" &&
+    !navigationGroups.length
+  ) {
+    navigationGroups.push({ title: undefined, items: [] });
+  }
 
   return (
     <Sidebar
       collapsible="icon"
       className="border-r border-border bg-sidebar transition-all duration-300 relative">
-      <SidebarHeader className="h-14 flex items-center gap-3 px-4 border-b border-border relative">
+      <SidebarHeader
+        className={cn(
+          "py-3 flex flex-row items-center gap-3 border-b border-border relative",
+          "group-data-[state=collapsed]:flex-col group-data-[state=collapsed]:items-start group-data-[state=collapsed]:gap-2",
+        )}>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <Link href="/" className="flex items-center gap-3 min-w-0">
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+                <div className="bg-primary text-primary-foreground p-2 rounded-md shrink-0 flex items-center justify-center">
+                  <EnterpriseLogo className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">Enterprise CMS</span>
+                </div>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <SidebarTrigger
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 z-20",
-            "h-8 w-8 rounded-full border border-border bg-background shadow-sm hover:bg-muted/50",
-            "hidden md:inline-flex",
+            "hidden md:inline-flex h-8 w-8 rounded-full border border-border bg-background shadow-sm hover:bg-muted/50",
+            "ml-auto self-center",
+            "group-data-[state=collapsed]:ml-0 group-data-[state=collapsed]:self-start group-data-[state=collapsed]:mt-1",
           )}
         />
-        <Link href="/" className="flex items-center gap-3 min-w-0">
-          <div className="bg-primary text-primary-foreground p-2 rounded-md shrink-0 flex items-center justify-center">
-            <EnterpriseLogo className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-sm truncate group-data-[collapsible=icon]:hidden">
-            Enterprise CMS
-          </span>
-        </Link>
       </SidebarHeader>
 
-      <SidebarContent className="py-3 flex-1 overflow-y-auto">
-        <div className="px-3 mb-2">
-          <SidebarMenu className="gap-[10px]">
-            <NavLink href="/" icon={BarChart3}>
-              Dashboard
-            </NavLink>
-          </SidebarMenu>
-        </div>
-        <div className="px-3 mb-4">
-          <SidebarLabel className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Content
-          </SidebarLabel>
-          <SidebarMenu className="gap-[10px]">
-            <NavLink href="/data-manager" icon={Database}>
-              Data Manager
-            </NavLink>
-            <NavLink href="/schema-builder" icon={Wrench}>
-              Schema Builder
-            </NavLink>
-            <NavLink href="/media" icon={Image}>
-              Asset Gallery
-            </NavLink>
-          </SidebarMenu>
-        </div>
-        <div className="px-3 mb-4">
-          <SidebarLabel className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Extensions
-          </SidebarLabel>
-          <SidebarMenu className="gap-[10px]">
-            <NavLink href="/plugins" icon={Blocks}>
-              Plugins
-            </NavLink>
-            <NavLink href="/middlewares" icon={Settings}>
-              Middlewares
-            </NavLink>
-          </SidebarMenu>
-        </div>
-        {/* <div className="px-3 mb-4">
-          <SidebarLabel className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Administration panel
-          </SidebarLabel>
-          <SidebarMenu className="gap-[10px]">
-            <NavLink href="/settings/audit-logs" icon={ClipboardList} pro>
-              Audit Logs
-            </NavLink>
-            <NavLink href="/settings/roles" icon={Shield}>
-              Roles
-            </NavLink>
-            <NavLink href="/settings/users" icon={Users}>
-              Users
-            </NavLink>
-          </SidebarMenu>
-        </div> */}
-        <div className="px-3">
-          <SidebarMenu className="gap-[10px]">
-            <NavLink href="/settings" icon={Settings}>
-              Settings
-            </NavLink>
-          </SidebarMenu>
-        </div>
+      <SidebarContent className="flex-1 overflow-y-auto">
+        {navigationGroups.map((group, idx) => (
+          <div
+            className={cn(
+              group.title ? "mb-4" : "mb-2",
+              "group-data-[collapsible=icon]:mb-0",
+            )}
+            key={group.title ?? idx}>
+            <NavMenu title={group.title} items={group.items} />
+          </div>
+        ))}
       </SidebarContent>
-      <SidebarFooter className="p-3 border-t border-border overflow-hidden">
-        <div className="flex items-center gap-3 px-3 py-2 min-w-0 overflow-hidden">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold shrink-0">
-            {initials}
+      <SidebarContent>
+        {footerNavigationGroups.map((group, idx) => (
+          <div
+            className={cn(
+              "mt-auto",
+              group.title ? "mb-2" : "mb-0",
+              "group-data-[collapsible=icon]:mb-0",
+            )}
+            key={group.title ?? idx}>
+            <NavMenu title={group.title} items={group.items} />
           </div>
-          <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="text-sm font-medium truncate">
-              {[user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-                "User"}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {user?.email || ""}
-            </p>
-          </div>
-          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 group-data-[collapsible=icon]:hidden" />
-        </div>
+        ))}
+      </SidebarContent>
+      <SidebarFooter>
+        <NavUser
+          firstName={user?.firstName || ""}
+          lastName={user?.lastName || ""}
+          email={user?.email || ""}
+          avatar={user?.avatar || ""}
+        />
       </SidebarFooter>
     </Sidebar>
   );

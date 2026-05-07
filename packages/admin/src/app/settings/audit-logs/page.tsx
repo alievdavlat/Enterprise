@@ -54,7 +54,7 @@ export default function AuditLogsPage() {
   const pageCount = pagination?.pageCount ?? 1;
 
   return (
-    <div className="p-8 max-w-5xl space-y-6 animate-in fade-in duration-300">
+    <div className="p-8 space-y-6 animate-in fade-in duration-300">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Audit Logs</h1>
         <p className="text-muted-foreground mt-1">

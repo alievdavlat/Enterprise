@@ -1,14 +1,27 @@
+export type ApiTokenType = "read-only" | "full-access" | "custom";
+
 export interface ApiToken {
-  id: string;
+  id: number;
   name: string;
   description?: string;
+  accessKey?: string;
+  type?: ApiTokenType;
+  lifespan?: string | null;
   createdAt?: string;
   lastUsed?: string;
-  type?: string;
 }
 
 export interface CreateApiTokenPayload {
   name: string;
   description?: string;
-  type?: string;
+  type?: ApiTokenType;
+  lifespan?: string | null;
+}
+
+export interface UpdateApiTokenPayload {
+  name?: string;
+  description?: string;
+  type?: ApiTokenType;
+  lifespan?: string | null;
+  regenerate?: boolean;
 }

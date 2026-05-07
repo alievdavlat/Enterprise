@@ -66,14 +66,14 @@ export default function SSOPage() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-4xl">
+      <div className="p-8">
         <div className="text-muted-foreground">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-4xl space-y-8 animate-in fade-in duration-300">
+    <div className="p-8 space-y-8 animate-in fade-in duration-300">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">

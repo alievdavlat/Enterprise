@@ -430,6 +430,11 @@ export function createAdminRouter(
       try {
         const { v4: uuidv4 } = await import("uuid");
         const { name, description, type, lifespan } = req.body;
+        if (!name || typeof name !== "string") {
+          return res
+            .status(400)
+            .json({ error: { message: "name is required" } });
+        }
         const token = await db.create("enterprise_api_tokens", {
           name,
           description: description || "",
@@ -438,6 +443,60 @@ export function createAdminRouter(
           lifespan: lifespan || null,
         });
         res.status(201).json({ data: token });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  /**
+   * PUT /api/admin/api-tokens/:id
+   * Update name, description, type or regenerate accessKey
+   */
+  router.put(
+    "/api-tokens/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const id = Number(req.params.id);
+        if (Number.isNaN(id)) {
+          return res
+            .status(400)
+            .json({ error: { message: "invalid id" } });
+        }
+        const { name, description, type, lifespan, regenerate } = req.body;
+        const patch: Record<string, unknown> = {};
+        if (typeof name === "string") patch.name = name;
+        if (typeof description === "string") patch.description = description;
+        if (typeof type === "string") patch.type = type;
+        if (lifespan === null || typeof lifespan === "string")
+          patch.lifespan = lifespan;
+        if (regenerate) {
+          const { v4: uuidv4 } = await import("uuid");
+          patch.accessKey = uuidv4();
+        }
+        const updated = await db.update("enterprise_api_tokens", id, patch);
+        res.json({ data: updated });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/admin/api-tokens/:id
+   */
+  router.delete(
+    "/api-tokens/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const id = Number(req.params.id);
+        if (Number.isNaN(id)) {
+          return res
+            .status(400)
+            .json({ error: { message: "invalid id" } });
+        }
+        await db.delete("enterprise_api_tokens", id);
+        res.status(204).send();
       } catch (err) {
         next(err);
       }
@@ -937,7 +996,7 @@ export function createAdminRouter(
 
   router.post("/email-templates", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { name, displayName, subject, body, fromName, fromEmail, responseEmail } = req.body || {};
+      const { name, displayName, subject, body, bodyType, fromName, fromEmail, responseEmail } = req.body || {};
       if (!name || !subject || !body) {
         return res.status(400).json({ error: { message: "name, subject, body are required" } });
       }
@@ -947,6 +1006,7 @@ export function createAdminRouter(
           displayName: displayName || name,
           subject,
           body,
+          bodyType: bodyType ?? null,
           fromName: fromName ?? null,
           fromEmail: fromEmail ?? null,
           responseEmail: responseEmail ?? null,
@@ -959,6 +1019,7 @@ export function createAdminRouter(
         displayName: displayName || name,
         subject,
         body,
+        bodyType: bodyType ?? null,
         fromName: fromName ?? null,
         fromEmail: fromEmail ?? null,
         responseEmail: responseEmail ?? null,
@@ -973,10 +1034,11 @@ export function createAdminRouter(
     try {
       const id = paramId(req.params.id);
       const payload: Record<string, unknown> = {};
-      const { displayName, subject, body, fromName, fromEmail, responseEmail } = req.body || {};
+      const { displayName, subject, body, bodyType, fromName, fromEmail, responseEmail } = req.body || {};
       if (displayName !== undefined) payload.displayName = displayName;
       if (subject !== undefined) payload.subject = subject;
       if (body !== undefined) payload.body = body;
+      if (bodyType !== undefined) payload.bodyType = bodyType;
       if (fromName !== undefined) payload.fromName = fromName;
       if (fromEmail !== undefined) payload.fromEmail = fromEmail;
       if (responseEmail !== undefined) payload.responseEmail = responseEmail;

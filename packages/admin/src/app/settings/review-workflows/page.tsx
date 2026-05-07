@@ -134,14 +134,14 @@ export default function ReviewWorkflowsPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl space-y-6 animate-in fade-in duration-300">
+    <div className="p-8 space-y-6 animate-in fade-in duration-300">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Review Workflows</h1>
           <p className="text-muted-foreground mt-1">Define stages for content review</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger>
+          <DialogTrigger asChild>
             <Button className="gap-2" onClick={openCreate}>
               <Plus className="w-4 h-4" />
               Create workflow

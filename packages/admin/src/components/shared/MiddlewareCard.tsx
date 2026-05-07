@@ -6,7 +6,7 @@ import {
   CardTitle,
   CardDescription,
   CardFooter,
-  Toggle,
+  Switch,
 } from "@enterprise/design-system";
 import { CheckCircle2 } from "lucide-react";
 
@@ -43,12 +43,11 @@ export const MiddlewareCard = ({
             </CardDescription>
           </div>
         </div>
-        <Toggle
+        <Switch
           checked={middleware.enabled}
           onCheckedChange={() =>
             toggleMiddleware(middleware.id, middleware.enabled)
           }
-          className="data-[state=checked]:bg-primary"
         />
       </CardHeader>
       <CardFooter className="pt-2 flex justify-between items-center border-t border-border/30 bg-muted/10 h-10">

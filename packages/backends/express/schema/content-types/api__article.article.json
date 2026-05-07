@@ -1,0 +1,21 @@
+{
+  "uid": "api::article.article",
+  "kind": "collectionType",
+  "collectionName": "articles",
+  "displayName": "Article",
+  "singularName": "article",
+  "pluralName": "articles",
+  "draftAndPublish": true,
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "content": {
+      "type": "richtext"
+    },
+    "slug": {
+      "type": "uid"
+    }
+  }
+}

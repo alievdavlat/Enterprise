@@ -138,7 +138,7 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="p-8 max-w-6xl space-y-6 animate-in fade-in duration-300">
+    <div className="p-8 space-y-6 animate-in fade-in duration-300">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">

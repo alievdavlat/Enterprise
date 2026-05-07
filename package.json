@@ -30,8 +30,8 @@
     "@types/node": "^22.13.1"
   },
   "overrides": {
-    "@types/react": "18.3.18",
-    "@types/react-dom": "18.3.5"
+    "@types/react": "19.2.3",
+    "@types/react-dom": "19.2.3"
   },
   "engines": {
     "node": ">=18.0.0",

@@ -26,7 +26,8 @@ export function ConfirmDialog({
     onOpenChange(false);
   };
 
-  const confirmVariant = variant === "destructive" ? "danger" : "primary";
+  const confirmVariant: "destructive" | "default" =
+    variant === "destructive" ? "destructive" : "default";
 
   return (
     <Modal

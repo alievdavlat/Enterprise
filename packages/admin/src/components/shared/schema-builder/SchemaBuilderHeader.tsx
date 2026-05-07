@@ -76,7 +76,7 @@ export function SchemaBuilderHeader({
             <Plus className="w-4 h-4" /> Add field
           </Button>
           <Button
-            variant="danger"
+            variant="destructive"
             size="icon"
             className="shrink-0"
             onClick={() => onDelete(selectedCt)}

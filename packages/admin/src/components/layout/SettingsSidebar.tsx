@@ -7,7 +7,6 @@ import {
   Key,
   Globe,
   Image,
-  Puzzle,
   Zap,
   Lock,
   Truck,
@@ -19,10 +18,10 @@ import {
   UserCog,
   FileText,
   Wrench,
-  FileJson,
   History,
   BookOpen,
   Clock,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,17 +30,18 @@ const NavLink = ({
   children,
   icon: Icon,
   pro,
+  exact,
 }: {
   href: string;
   children: React.ReactNode;
   icon?: React.ElementType;
   pro?: boolean;
+  exact?: boolean;
 }) => {
   const pathname = usePathname();
-  const active =
-    pathname === href ||
-    (href !== "/settings" && pathname.startsWith(href)) ||
-    (href === "/settings" && pathname === "/settings" && !pathname.slice(10));
+  const active = exact
+    ? pathname === href
+    : pathname === href || (href !== "/settings" && pathname.startsWith(href));
   return (
     <Link
       href={href}
@@ -53,11 +53,64 @@ const NavLink = ({
       )}
     >
       {Icon && <Icon className="w-4 h-4 shrink-0" />}
-      <span className="flex-1">{children}</span>
+      <span className="flex-1 truncate">{children}</span>
       {pro && <Zap className="w-3.5 h-3.5 text-primary shrink-0" />}
     </Link>
   );
 };
+
+type Section = {
+  title: string;
+  items: Array<{
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    pro?: boolean;
+    exact?: boolean;
+  }>;
+};
+
+const SECTIONS: Section[] = [
+  {
+    title: "Global settings",
+    items: [
+      { href: "/settings", label: "Overview", icon: Home, exact: true },
+      { href: "/settings/api-tokens", label: "API Tokens", icon: Key },
+      { href: "/settings/data-backup", label: "Data Backup", icon: Database },
+      { href: "/settings/internationalization", label: "Internationalization", icon: Globe },
+      { href: "/settings/media-library", label: "Asset Gallery", icon: Image },
+      { href: "/settings/review-workflows", label: "Review Workflows", icon: Zap, pro: true },
+      { href: "/settings/sso", label: "Single Sign-On", icon: Lock, pro: true },
+      { href: "/settings/transfer-tokens", label: "Transfer Tokens", icon: Truck },
+      { href: "/settings/webhooks", label: "Webhooks", icon: Webhook },
+      { href: "/settings/api-docs", label: "API Documentation", icon: BookOpen },
+      { href: "/settings/content-history", label: "Content History", icon: History, pro: true },
+      { href: "/settings/cron", label: "Cron jobs", icon: Clock },
+    ],
+  },
+  {
+    title: "Administration panel",
+    items: [
+      { href: "/settings/audit-logs", label: "Audit Logs", icon: ClipboardList, pro: true },
+      { href: "/settings/roles", label: "Roles", icon: Shield },
+      { href: "/settings/users", label: "Users", icon: Users },
+    ],
+  },
+  {
+    title: "Email plugin",
+    items: [
+      { href: "/settings/email", label: "Configuration", icon: Mail },
+    ],
+  },
+  {
+    title: "Users & permissions",
+    items: [
+      { href: "/settings/roles", label: "Roles", icon: UserCog },
+      { href: "/settings/users-permissions/email-templates", label: "Email templates", icon: FileText },
+      { href: "/settings/users-permissions/advanced", label: "Advanced settings", icon: Wrench },
+    ],
+  },
+];
 
 export function SettingsSidebar() {
   return (
@@ -65,95 +118,27 @@ export function SettingsSidebar() {
       <div className="h-14 flex items-center px-4 border-b border-border">
         <span className="font-semibold text-sm">Settings</span>
       </div>
-      <nav className="flex-1 overflow-y-auto py-3 px-3">
-        <div className="mb-4">
-          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Global settings
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink href="/settings" icon={Home}>
-              Overview
-            </NavLink>
-            <NavLink href="/settings/api-tokens" icon={Key}>
-              API Tokens
-            </NavLink>
-            <NavLink href="/settings/internationalization" icon={Globe}>
-              Internationalization
-            </NavLink>
-            <NavLink href="/settings/media-library" icon={Image}>
-              Asset Gallery
-            </NavLink>
-            <NavLink href="/settings/plugins" icon={Puzzle}>
-              Plugins
-            </NavLink>
-            <NavLink href="/settings/review-workflows" icon={Zap} pro>
-              Review Workflows
-            </NavLink>
-            <NavLink href="/settings/sso" icon={Lock} pro>
-              Single Sign-On
-            </NavLink>
-            <NavLink href="/settings/transfer-tokens" icon={Truck}>
-              Transfer Tokens
-            </NavLink>
-            <NavLink href="/settings?tab=backup" icon={FileJson}>
-              Project backup
-            </NavLink>
-            <NavLink href="/settings/webhooks" icon={Webhook}>
-              Webhooks
-            </NavLink>
-            <NavLink href="/settings/api-docs" icon={BookOpen}>
-              API Documentation
-            </NavLink>
-            <NavLink href="/settings/content-history" icon={History} pro>
-              Content History
-            </NavLink>
-            <NavLink href="/settings/cron" icon={Clock}>
-              Cron jobs
-            </NavLink>
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+        {SECTIONS.map((section) => (
+          <div key={section.title}>
+            <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {section.title}
+            </p>
+            <div className="flex flex-col gap-1">
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.href}
+                  href={item.href}
+                  icon={item.icon}
+                  pro={item.pro}
+                  exact={item.exact}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="mb-4">
-          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Administration panel
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink href="/settings/audit-logs" icon={ClipboardList} pro>
-              Audit Logs
-            </NavLink>
-            <NavLink href="/settings/roles" icon={Shield}>
-              Roles
-            </NavLink>
-            <NavLink href="/settings/users" icon={Users}>
-              Users
-            </NavLink>
-          </div>
-        </div>
-        <div className="mb-4">
-          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Email plugin
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink href="/settings/email" icon={Mail}>
-              Configuration
-            </NavLink>
-          </div>
-        </div>
-        <div className="mb-4">
-          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Users & permissions
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink href="/settings/roles" icon={UserCog}>
-              Roles
-            </NavLink>
-            <NavLink href="/settings/users-permissions/email-templates" icon={FileText}>
-              Email templates
-            </NavLink>
-            <NavLink href="/settings/users-permissions/advanced" icon={Wrench}>
-              Advanced settings
-            </NavLink>
-          </div>
-        </div>
+        ))}
       </nav>
     </aside>
   );

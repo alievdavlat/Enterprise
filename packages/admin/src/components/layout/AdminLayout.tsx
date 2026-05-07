@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { SidebarProvider } from "@enterprise/design-system";
+import { SidebarProvider, SidebarInset } from "@enterprise/design-system";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
 
@@ -21,9 +21,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <SidebarProvider defaultOpen>
           <div className="flex h-screen w-full overflow-hidden">
             <AppSidebar />
-            <main className="flex-1 overflow-y-auto bg-muted/20 relative w-full h-full flex flex-col">
-              {children}
-            </main>
+            <SidebarInset>
+              <main className="flex-1 overflow-y-auto bg-muted/20 relative w-full h-full flex flex-col">
+                {children}
+              </main>
+            </SidebarInset>
           </div>
         </SidebarProvider>
       </OnboardingGuard>

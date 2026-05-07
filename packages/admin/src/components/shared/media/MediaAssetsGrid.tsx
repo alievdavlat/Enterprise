@@ -57,7 +57,7 @@ export function MediaAssetsGrid({
               </Button>
               <Button
                 size="icon"
-                variant="danger"
+                variant="destructive"
                 className="h-8 w-8"
                 onClick={() => onRemove(file.id)}
               >

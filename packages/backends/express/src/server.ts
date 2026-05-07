@@ -317,6 +317,7 @@ export class EnterpriseServer {
           { name: "displayName", type: "string", nullable: false },
           { name: "subject", type: "string", nullable: false },
           { name: "body", type: "text", nullable: false },
+          { name: "bodyType", type: "string", nullable: true },
           { name: "fromName", type: "string", nullable: true },
           { name: "fromEmail", type: "string", nullable: true },
           { name: "responseEmail", type: "string", nullable: true },
@@ -324,6 +325,26 @@ export class EnterpriseServer {
         timestamps: true,
       });
       console.log("[Enterprise] Table enterprise_email_templates created");
+    } else {
+      // Migration: add bodyType column on existing installs
+      try {
+        const cols = await this.db.findMany("enterprise_email_templates", {
+          pagination: { page: 1, pageSize: 1 },
+        });
+        const sample = cols.data?.[0] as Record<string, unknown> | undefined;
+        if (sample && !("bodyType" in sample)) {
+          if (typeof (this.db as any).addColumn === "function") {
+            await (this.db as any).addColumn("enterprise_email_templates", {
+              name: "bodyType",
+              type: "string",
+              nullable: true,
+            });
+            console.log("[Enterprise] Added bodyType column to enterprise_email_templates");
+          }
+        }
+      } catch {
+        /* best-effort migration */
+      }
     }
 
     // Content history / versioning (Strapi v5 Enterprise: revision per update/publish)
@@ -643,6 +664,39 @@ export class EnterpriseServer {
 
     // Auth routes
     this.app.use(`${apiPrefix}/auth`, createAuthRouter(this.db));
+
+    // Public UI configuration (read-only, used by /login & /register before authentication)
+    // Whitelist of safe-to-read store keys.
+    const PUBLIC_UI_KEYS = new Set<string>(["admin::ui::auth-template"]);
+    this.app.get(`${apiPrefix}/public/ui-config`, async (req, res, next) => {
+      try {
+        const key = req.query.key as string;
+        if (!key || !PUBLIC_UI_KEYS.has(key)) {
+          return res.status(404).json({ error: { message: "Not found" } });
+        }
+        const row = await this.db.findOneBy("enterprise_core_store_settings", {
+          key,
+        });
+        if (!row) {
+          return res.status(404).json({ error: { message: "Not found" } });
+        }
+        const value = (row as { value?: string }).value;
+        let parsed: unknown = value;
+        try {
+          if (
+            typeof value === "string" &&
+            (value.startsWith("{") || value.startsWith("["))
+          ) {
+            parsed = JSON.parse(value);
+          }
+        } catch {
+          /* keep string */
+        }
+        res.json({ data: { key, value: parsed } });
+      } catch (err) {
+        next(err);
+      }
+    });
 
     // Content type routes (auto-generated from schemas, Strapi v5 Document Service)
     // Public GET, authenticated POST/PUT/DELETE – like Strapi's default Public role

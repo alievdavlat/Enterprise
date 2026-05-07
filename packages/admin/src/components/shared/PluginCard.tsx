@@ -46,7 +46,7 @@ export const PluginCard = ({ plugin, togglePlugin }: PluginCardProps) => {
       </CardHeader>
       <CardFooter className="pt-2 flex justify-between items-center border-t border-border/30 bg-muted/10">
         <Badge
-          variant={plugin.enabled ? "primary" : "secondary"}
+          variant={plugin.enabled ? "default" : "secondary"}
           className="font-mono text-xs shadow-none">
           v{plugin.version}
         </Badge>

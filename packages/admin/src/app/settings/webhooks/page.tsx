@@ -156,7 +156,7 @@ export default function WebhooksPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl space-y-6 animate-in fade-in duration-300">
+    <div className="p-8 space-y-6 animate-in fade-in duration-300">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Webhooks</h1>
@@ -165,7 +165,7 @@ export default function WebhooksPage() {
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger>
+          <DialogTrigger asChild>
             <Button className="gap-2" onClick={openCreate}>
               <Plus className="w-4 h-4" />
               Create new webhook

@@ -52,4 +52,18 @@ export * from "./components/input-otp";
 export * from "./components/alert-dialog";
 export * from "./components/chart";
 
+// ── Aceternity-inspired motion / decorative components ──
+export * from "./components/aurora-background";
+export * from "./components/spotlight";
+export * from "./components/background-gradient";
+export * from "./components/hover-border-gradient";
+export * from "./components/meteors";
+export * from "./components/beams";
+export * from "./components/card-spotlight";
+export * from "./components/bento-grid";
+export * from "./components/text-generate-effect";
+export * from "./components/animated-tooltip";
+export * from "./components/moving-border";
+export * from "./components/grid-background";
+
 export type * from "./types";
