@@ -63,9 +63,12 @@ export function ContentManagerClient() {
           ? `/${contentType.singularName}`
           : `/${contentType.pluralName}`;
       const isCollection = contentType.kind !== "singleType";
+      // populate=* hydrates media / relation / component references so the
+      // data-manager table can render image thumbnails and related-entry
+      // titles instead of bare IDs.
       const res = isCollection
-        ? await api.get(endpoint, { params: { page, pageSize } })
-        : await api.get(endpoint);
+        ? await api.get(endpoint, { params: { page, pageSize, populate: "*" } })
+        : await api.get(endpoint, { params: { populate: "*" } });
       if (!isCollection) {
         setData(res.data.data ? [res.data.data] : []);
         setFormData(res.data.data || {});

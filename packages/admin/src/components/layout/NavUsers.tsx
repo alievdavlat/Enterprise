@@ -1,6 +1,7 @@
 "use client";
 
-import { CreditCard, MoreVertical, LogOut, Bell, User } from "lucide-react";
+import { MoreVertical, LogOut, Bell, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,13 +18,8 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@enterprise/design-system";
+import { useAppStore } from "@/store/app";
 
-interface NavUserProps {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  avatar?: string;
-}
 export function NavUser({
   firstName,
   lastName,
@@ -36,6 +32,15 @@ export function NavUser({
   avatar: string;
 }) {
   const { isMobile } = useSidebar();
+  const router = useRouter();
+  const logout = useAppStore((s) => s.logout);
+
+  const initials = `${(firstName?.[0] ?? "").toUpperCase()}${(lastName?.[0] ?? "").toUpperCase()}` || "U";
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
 
   return (
     <SidebarMenu>
@@ -47,10 +52,10 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={avatar} alt={`${firstName} ${lastName}`} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarFallback className="rounded-lg">{initials || "U"}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{`${firstName} ${lastName}`}</span>
+                <span className="truncate font-medium">{`${firstName} ${lastName}`.trim() || email}</span>
                 <span className="truncate text-xs text-muted-foreground">
                   {email}
                 </span>
@@ -67,10 +72,10 @@ export function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={avatar} alt={`${firstName} ${lastName}`} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">{initials || "U"}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{`${firstName} ${lastName}`}</span>
+                  <span className="truncate font-medium">{`${firstName} ${lastName}`.trim() || email}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {email}
                   </span>
@@ -79,17 +84,17 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push("/account")}>
                 <User />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push("/notifications")}>
                 <Bell />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

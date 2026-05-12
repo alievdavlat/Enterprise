@@ -10,6 +10,8 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "build:libs": "turbo run build --filter=@enterprise/types --filter=@enterprise/core --filter=@enterprise/database --filter=@enterprise/utils --filter=@enterprise/hooks --filter=@enterprise/design-system",
+    "postinstall": "node ./scripts/postinstall.js",
     "create": "node packages/cli/dist/index.js",
     "prepare:templates": "npm run prepare:templates -w create-enterprise-app",
     "dev": "turbo run dev --parallel",
