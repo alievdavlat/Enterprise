@@ -48,6 +48,12 @@ export interface FieldDefinition {
   // Media
   allowedTypes?: ("images" | "videos" | "files" | "audios")[];
   multiple?: boolean;
+  /**
+   * Include this field in the text-search index. When no field on a schema
+   * sets this flag, every string-like field (string/text/richtext/email) is
+   * searched by default.
+   */
+  searchable?: boolean;
 }
 
 export interface ContentTypeSchema {

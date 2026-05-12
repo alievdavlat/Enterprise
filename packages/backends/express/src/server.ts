@@ -42,6 +42,7 @@ import { createMediaRouter } from "./routes/media";
 import { createWebhookRouter } from "./routes/webhooks";
 import { createAdminRouter } from "./routes/admin";
 import { createPreviewRouter, createAdminPreviewRouter } from "./routes/preview";
+import { createSearchRouter } from "./routes/search";
 import { createGraphQLServer } from "./graphql/server";
 import { authMiddleware, adminAuthMiddleware, createContentApiAuth } from "./middlewares/auth";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -823,6 +824,15 @@ export class EnterpriseServer {
     this.app.use(
       `${apiPrefix}/preview`,
       createPreviewRouter(this.schemaRegistry, this.db, this.documentService),
+    );
+
+    // Global cross-content search. Goes after contentApiAuth so requesting
+    // role is resolved by the same auth path as REST routes; the search
+    // router itself layers permission visibility on top.
+    this.app.use(
+      `${apiPrefix}/search`,
+      contentApiAuth,
+      createSearchRouter(this.schemaRegistry, this.db, this.permissionManager),
     );
   }
 

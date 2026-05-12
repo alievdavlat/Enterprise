@@ -200,6 +200,44 @@ function stripPrivateFields(
   return result;
 }
 
+const SEARCHABLE_DEFAULT_TYPES = new Set(["string", "text", "richtext", "email", "uid"]);
+
+/**
+ * Pick the fields to text-search over. If any field on the schema is marked
+ * `searchable: true`, that opt-in set wins. Otherwise we fall back to every
+ * string-like field so a fresh schema gets reasonable behaviour for free.
+ */
+export function resolveSearchFields(
+  attributes: Record<string, FieldConfig & { searchable?: boolean }>,
+): string[] {
+  const opted = Object.entries(attributes).filter(([, c]) => c.searchable);
+  if (opted.length > 0) return opted.map(([name]) => name);
+  return Object.entries(attributes)
+    .filter(([, c]) => SEARCHABLE_DEFAULT_TYPES.has(c.type ?? ""))
+    .map(([name]) => name);
+}
+
+/**
+ * Layer an OR-of-contains filter onto an existing filter map so `_q=foo`
+ * matches any searchable field. Returns a new filter object so callers can
+ * pass it straight to `db.findMany({ filters })`.
+ */
+export function applyTextSearchFilter(
+  existingFilters: Record<string, unknown> | undefined,
+  attributes: Record<string, FieldConfig & { searchable?: boolean }>,
+  query: string,
+): Record<string, unknown> {
+  const fields = resolveSearchFields(attributes);
+  if (fields.length === 0 || !query) return existingFilters ?? {};
+  const orClause = fields.map((field) => ({ [field]: { $contains: query } }));
+  // Preserve existing $or filters by wrapping them in $and.
+  const base = existingFilters ?? {};
+  if (Object.keys(base).length === 0) {
+    return { $or: orClause };
+  }
+  return { $and: [base, { $or: orClause }] };
+}
+
 export function createContentTypeRouter(
   schemaRegistry: SchemaRegistry,
   db: DatabaseAdapter,
@@ -278,6 +316,13 @@ export function createContentTypeRouter(
       params.status = query.status;
     }
 
+    // Free-text search: ?_q=foo (Strapi-compatible). Stored on params and
+    // converted to an $or filter against searchable fields at the route
+    // handler — needs the schema, which parseQueryParams doesn't have.
+    if (typeof query._q === "string" && query._q.trim()) {
+      (params as { _q?: string })._q = query._q.trim();
+    }
+
     return params;
   }
 
@@ -299,6 +344,15 @@ export function createContentTypeRouter(
             const params = parseQueryParams(
               req.query as Record<string, unknown>,
             );
+
+            // Layer free-text search onto params.filters so the existing
+            // findMany flow handles it uniformly.
+            const searchQuery = (params as { _q?: string })._q;
+            if (searchQuery) {
+              const attrs = (schema.attributes || {}) as Record<string, FieldConfig>;
+              params.filters = applyTextSearchFilter(params.filters, attrs, searchQuery);
+              delete (params as { _q?: string })._q;
+            }
 
             await lifecycleManager.run("beforeFindMany", {
               model: uid,
