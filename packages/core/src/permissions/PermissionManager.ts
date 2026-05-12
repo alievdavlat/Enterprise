@@ -28,9 +28,15 @@ export class PermissionManager {
   }
 
   can(action: Action, role: Role): boolean {
-    if (this.defaultAllowAdmin && role === "admin") return true;
+    if (this.defaultAllowAdmin && (role === "admin" || role === "superAdmin")) {
+      return true;
+    }
     const matching = this.rules.filter((r) => r.action === action && r.role === role);
-    return matching.length > 0 && matching.some((r) => r.allow);
+    if (matching.length === 0) return false;
+    // An explicit deny anywhere wins over an allow — admins use clear() to
+    // override defaults, callers can layer additional denies on top.
+    if (matching.some((r) => !r.allow)) return false;
+    return matching.some((r) => r.allow);
   }
 
   getRules(): PermissionRule[] {

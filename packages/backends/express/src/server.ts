@@ -402,16 +402,28 @@ export class EnterpriseServer {
       }
     }
 
-    // 4) Default permission rules (Strapi-style). Admin bypasses via PermissionManager.defaultAllowAdmin.
+    // 4) Default permission rules (Strapi-style). Admin/superAdmin bypass via
+    //    PermissionManager.defaultAllowAdmin. Public role can read; authenticated
+    //    role can also write/publish. Admin UI Settings > Roles can override
+    //    these via enterprise_permissions (synced back in via syncPermissionsFromDb).
+    const WRITE_ACTIONS = ["create", "update", "delete", "publish", "unpublish"];
+    const READ_ACTIONS = ["find", "findOne", "count"];
     for (const schema of this.schemaRegistry.getAll()) {
       const uid = schema.uid;
-      ["create", "read", "update", "delete", "find"].forEach((action) => {
+      for (const action of [...READ_ACTIONS, ...WRITE_ACTIONS]) {
         this.permissionManager.addRule({ action: `${uid}.${action}`, role: "authenticated", allow: true });
-        this.permissionManager.addRule({ action: `${uid}.${action}`, role: "public", allow: action === "read" || action === "find" });
-      });
+        this.permissionManager.addRule({
+          action: `${uid}.${action}`,
+          role: "public",
+          allow: READ_ACTIONS.includes(action),
+        });
+      }
     }
     this.permissionManager.addRule({ action: "plugin::upload.read", role: "authenticated", allow: true });
     this.permissionManager.addRule({ action: "plugin::upload.assets.create", role: "authenticated", allow: true });
+
+    // Layer admin-defined overrides from enterprise_permissions on top.
+    await this.syncPermissionsFromDb();
 
     // 5) Ensure the first user is superAdmin (Strapi-like bootstrap)
     try {
@@ -733,6 +745,7 @@ export class EnterpriseServer {
       this.db,
       this.lifecycleManager,
       this.documentService,
+      this.permissionManager,
     );
     this.app.use(apiPrefix, contentApiAuth, contentTypeRouter);
 
@@ -753,6 +766,7 @@ export class EnterpriseServer {
         onSchemaRegistered: (schema) => registerSchema?.(schema),
         getProjectRoot: () => projectRoot,
         getDiscoveredArtifacts: () => this.getDiscoveredArtifacts(),
+        reloadPermissions: () => this.syncPermissionsFromDb(),
       }),
     );
 
@@ -863,6 +877,44 @@ export class EnterpriseServer {
     }
     await this.db.disconnect();
     console.log("[Enterprise] Server stopped");
+  }
+
+  /**
+   * Re-load admin-defined permissions from `enterprise_permissions` into the
+   * in-memory PermissionManager. Called at boot and exposed via
+   * `app.reloadPermissions()` so the admin Roles editor can apply changes
+   * without a server restart.
+   *
+   * Rows look like `{ roleId, action, subject?, properties?, conditions? }`.
+   * For each row we resolve `roleId` to a role name (lower-cased) and add an
+   * allow rule. Rows with `subject` produce `${subject}.${action}`; rows
+   * without one produce just `${action}`. Existing default rules stay in
+   * place — admin overrides layer on top.
+   */
+  async syncPermissionsFromDb(): Promise<void> {
+    try {
+      const hasPerm = await this.db.tableExists("enterprise_permissions");
+      const hasRoles = await this.db.tableExists("enterprise_roles");
+      if (!hasPerm || !hasRoles) return;
+      const roles = (await this.db.findMany("enterprise_roles", {
+        pagination: { page: 1, pageSize: 500 },
+      })).data as { id: number; name: string }[];
+      const roleNameById = new Map(roles.map((r) => [r.id, r.name?.toLowerCase()]));
+      const permissions = (await this.db.findMany("enterprise_permissions", {
+        pagination: { page: 1, pageSize: 5000 },
+      })).data as { roleId: number; action: string; subject?: string | null }[];
+      for (const p of permissions) {
+        const roleName = roleNameById.get(p.roleId);
+        if (!roleName) continue;
+        const action = p.subject ? `${p.subject}.${p.action}` : p.action;
+        this.permissionManager.addRule({ action, role: roleName, allow: true });
+      }
+      if (permissions.length > 0) {
+        console.log(`[Enterprise] Synced ${permissions.length} permission rule(s) from DB`);
+      }
+    } catch (err) {
+      console.warn("[Enterprise] syncPermissionsFromDb failed:", err);
+    }
   }
 
   /**

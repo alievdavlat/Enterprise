@@ -1,9 +1,10 @@
 import { Router, Request, Response, NextFunction } from "express";
-import type { SchemaRegistry, DocumentService } from "@enterprise/core";
+import type { SchemaRegistry, DocumentService, PermissionManager } from "@enterprise/core";
 import type { ContentTypeSchema, FindManyParams, DocumentId } from "@enterprise/types";
 import type { DatabaseAdapter } from "@enterprise/database";
 import type { LifecycleManager } from "@enterprise/core";
 import { ensureTableForSchema } from "../loadSchemasFromDb";
+import { requirePermission } from "../middlewares/auth";
 
 const DOCUMENT_ID_LENGTH = 24;
 function looksLikeDocumentId(id: string): boolean {
@@ -203,8 +204,21 @@ export function createContentTypeRouter(
   db: DatabaseAdapter,
   lifecycleManager: LifecycleManager,
   documentService: DocumentService,
+  permissionManager?: PermissionManager,
 ): Router {
   const router = Router();
+
+  /**
+   * Build a permission gate for `${uid}.${action}` if a PermissionManager was
+   * provided; otherwise pass-through. Each registered route uses one so role
+   * → action rules apply uniformly.
+   */
+  function guard(uid: string, action: string) {
+    if (!permissionManager) {
+      return (_req: Request, _res: Response, next: NextFunction) => next();
+    }
+    return requirePermission(permissionManager, `${uid}.${action}`);
+  }
 
   /**
    * Parse query params into FindManyParams
@@ -274,6 +288,7 @@ export function createContentTypeRouter(
       // GET /api/{plural} - find many
       router.get(
         `/${pluralName}`,
+        guard(uid, "find"),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
             const params = parseQueryParams(
@@ -310,6 +325,7 @@ export function createContentTypeRouter(
       // POST /api/{plural} - create
       router.post(
         `/${pluralName}`,
+        guard(uid, "create"),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
             const { data } = req.body;
@@ -361,6 +377,7 @@ export function createContentTypeRouter(
       // GET /api/{plural}/:id (id can be numeric id or documentId – Strapi v5)
       router.get(
         `/${pluralName}/:id`,
+        guard(uid, "findOne"),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
             const idRaw = req.params.id;
@@ -402,6 +419,7 @@ export function createContentTypeRouter(
       // PUT /api/{plural}/:id (id can be numeric or documentId – Strapi v5)
       router.put(
         `/${pluralName}/:id`,
+        guard(uid, "update"),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
             const idRaw = req.params.id;
@@ -461,6 +479,7 @@ export function createContentTypeRouter(
       // DELETE /api/{plural}/:id (id can be numeric or documentId – Strapi v5)
       router.delete(
         `/${pluralName}/:id`,
+        guard(uid, "delete"),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
             const idRaw = req.params.id;
@@ -502,6 +521,7 @@ export function createContentTypeRouter(
       if (schema.draftAndPublish) {
         router.post(
           `/${pluralName}/:id/publish`,
+          guard(uid, "publish"),
           async (req: Request, res: Response, next: NextFunction) => {
             try {
               const idRaw = req.params.id;
@@ -531,6 +551,7 @@ export function createContentTypeRouter(
 
         router.post(
           `/${pluralName}/:id/unpublish`,
+          guard(uid, "unpublish"),
           async (req: Request, res: Response, next: NextFunction) => {
             try {
               const idRaw = req.params.id;
@@ -560,6 +581,7 @@ export function createContentTypeRouter(
       // Single type (Strapi v5: documentId in response)
       router.get(
         `/${singularName}`,
+        guard(uid, "findOne"),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
             const result = await db.findMany(schema.collectionName, {
@@ -578,6 +600,7 @@ export function createContentTypeRouter(
 
       router.put(
         `/${singularName}`,
+        guard(uid, "update"),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
             const { data } = req.body;

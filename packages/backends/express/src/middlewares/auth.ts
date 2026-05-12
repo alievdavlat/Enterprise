@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import type { DatabaseAdapter } from "@enterprise/database";
+import type { PermissionManager } from "@enterprise/core";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "enterprise-jwt-secret-change-in-production";
@@ -175,5 +176,58 @@ export function createContentApiAuth(db: DatabaseAdapter) {
         message: "Invalid or expired token",
       },
     });
+  };
+}
+
+const READ_ACTIONS = new Set(["find", "findOne", "count"]);
+
+/**
+ * Map a request's auth state to the role string that PermissionManager rules
+ * key off of. Mirrors Strapi's resolution:
+ *   - admin / superAdmin keep their explicit role (PermissionManager bypasses them)
+ *   - JWT user with any other role keeps that role (defaults to "authenticated")
+ *   - API token: `read-only` is treated like `public` for writes and `authenticated` for reads;
+ *     `full` and `custom` are treated like `authenticated`. Stricter per-token enforcement
+ *     belongs in a later phase once token-scoped rules are stored.
+ *   - No auth → "public"
+ */
+export function resolveRequestRole(req: Request, action: string): string {
+  const user = (req as { user?: { role?: string; tokenType?: string } | null }).user;
+  if (!user) return "public";
+  if (user.role === "api-token") {
+    if (user.tokenType === "read-only") {
+      return READ_ACTIONS.has(action) ? "authenticated" : "public";
+    }
+    return "authenticated";
+  }
+  return user.role || "authenticated";
+}
+
+/**
+ * Build a middleware that enforces a permission on the current request.
+ *
+ * `actionFor` may be either a static action string (when the route always
+ * checks the same permission) or a callback that derives the action from
+ * the request — useful when one handler covers create + update and we need
+ * to distinguish on the fly.
+ */
+export function requirePermission(
+  permissionManager: PermissionManager,
+  actionFor: string | ((req: Request) => string),
+) {
+  return function permissionGuard(req: Request, res: Response, next: NextFunction): void {
+    const action = typeof actionFor === "function" ? actionFor(req) : actionFor;
+    const role = resolveRequestRole(req, action.split(".").pop() || "");
+    if (!permissionManager.can(action, role)) {
+      res.status(403).json({
+        error: {
+          status: 403,
+          name: "ForbiddenError",
+          message: `Forbidden: missing permission "${action}" for role "${role}"`,
+        },
+      });
+      return;
+    }
+    next();
   };
 }

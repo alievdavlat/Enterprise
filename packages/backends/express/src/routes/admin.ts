@@ -29,11 +29,14 @@ export function createAdminRouter(
       cron: { name: string; schedule: string; running: boolean }[];
       services: { registered: string[]; skipped: string[] };
     };
+    /** Re-sync PermissionManager from `enterprise_permissions` after role edits. */
+    reloadPermissions?: () => Promise<void> | void;
   },
 ): Router {
   const router = Router();
   const getProjectRoot = options?.getProjectRoot;
   const getDiscoveredArtifacts = options?.getDiscoveredArtifacts;
+  const reloadPermissions = options?.reloadPermissions;
 
   // ---- System / Discovered artifacts ----
   router.get("/system", (_req: Request, res: Response) => {
@@ -1239,6 +1242,14 @@ export function createAdminRouter(
           });
           created.push(row);
         }
+      }
+      // Hot-apply: rebuild in-memory rules so the new matrix takes effect
+      // without a server restart. Best-effort — failure here doesn't block
+      // the response.
+      try {
+        await reloadPermissions?.();
+      } catch (err) {
+        console.warn("[admin] reloadPermissions failed:", err);
       }
       res.json({ data: created });
     } catch (err) {
