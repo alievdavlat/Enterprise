@@ -1,6 +1,12 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import {
+  ImageProcessor,
+  DEFAULT_IMAGE_FORMATS,
+  type ImageFormatSpec,
+  type GeneratedFormat,
+} from "./ImageProcessor";
 
 export interface MediaRecord {
   id?: number;
@@ -14,6 +20,10 @@ export interface MediaRecord {
   caption?: string;
   alternativeText?: string;
   folderPath?: string;
+  width?: number;
+  height?: number;
+  /** JSON-encoded Record<string, GeneratedFormat> when stored in the DB. */
+  formats?: string | Record<string, GeneratedFormat>;
 }
 
 export interface UploadInput {
@@ -51,6 +61,11 @@ export interface UploadConfig {
   sizeLimit?: number;
   /** Storage provider id. Only `local` is wired here; extend via app.plugin('upload').services.registerProvider */
   provider?: string;
+  /**
+   * Responsive image variants generated on upload. Defaults to Strapi's
+   * thumbnail/small/medium/large set. Pass `[]` to disable.
+   */
+  imageFormats?: ImageFormatSpec[];
 }
 
 /**
@@ -65,6 +80,8 @@ export class UploadService {
   private publicUrlPrefix: string;
   private sizeLimit: number;
   private provider: string;
+  private imageFormats: ImageFormatSpec[];
+  private imageProcessor: ImageProcessor;
 
   constructor(opts: { db: DbLike; table?: string; config?: UploadConfig }) {
     this.db = opts.db;
@@ -74,6 +91,8 @@ export class UploadService {
     this.publicUrlPrefix = cfg.publicUrlPrefix ?? "/uploads";
     this.sizeLimit = cfg.sizeLimit ?? 50 * 1024 * 1024;
     this.provider = cfg.provider ?? "local";
+    this.imageFormats = cfg.imageFormats ?? DEFAULT_IMAGE_FORMATS;
+    this.imageProcessor = new ImageProcessor();
   }
 
   async upload(input: UploadInput): Promise<MediaRecord> {
@@ -101,6 +120,30 @@ export class UploadService {
     await fs.promises.writeFile(absPath, input.buffer);
 
     const url = `${this.publicUrlPrefix}/${storedName}`;
+
+    // Image-only: read dimensions + render the responsive variant set. Both
+    // calls degrade to no-ops when `sharp` isn't installed so non-image
+    // uploads and sharp-less environments still complete normally.
+    let width: number | undefined;
+    let height: number | undefined;
+    let formats: Record<string, GeneratedFormat> = {};
+    if (this.imageProcessor.isImage(input.mimeType)) {
+      const meta = await this.imageProcessor.readMetadata(input.buffer);
+      width = meta.width;
+      height = meta.height;
+      if (this.imageFormats.length > 0) {
+        formats = await this.imageProcessor.generateVariants({
+          buffer: input.buffer,
+          hash,
+          outputDir: this.uploadDir,
+          publicUrlPrefix: this.publicUrlPrefix,
+          originalExt: ext.replace(".", ""),
+          originalMime: input.mimeType,
+          formats: this.imageFormats,
+        });
+      }
+    }
+
     const record: Omit<MediaRecord, "id"> = {
       name: input.filename,
       hash,
@@ -112,6 +155,11 @@ export class UploadService {
       caption: input.caption,
       alternativeText: input.alternativeText,
       folderPath: input.folderPath,
+      width,
+      height,
+      // DB column is TEXT; JSON-stringify so adapters that don't auto-encode
+      // (sqlite/mysql) still round-trip correctly.
+      formats: Object.keys(formats).length > 0 ? JSON.stringify(formats) : undefined,
     };
     const created = (await this.db.create(this.table, record as Record<string, unknown>)) as MediaRecord;
     return created;
@@ -152,8 +200,6 @@ export class UploadService {
     // Remove the file from disk for local provider; ignore failures (file may
     // already be gone, or another media row may share the hash via dedupe).
     if ((record.provider ?? this.provider) === "local" && record.url) {
-      const fileName = path.basename(record.url);
-      const filePath = path.join(this.uploadDir, fileName);
       try {
         const dupeCount = (
           await this.db.findMany(this.table, {
@@ -162,7 +208,33 @@ export class UploadService {
           })
         ).data.length;
         if (dupeCount <= 1) {
-          await fs.promises.unlink(filePath);
+          const filesToRemove: string[] = [path.basename(record.url)];
+          // Pull variant filenames from the formats blob so the on-disk
+          // variants disappear too.
+          const formatsRaw = record.formats;
+          let formatsObj: Record<string, GeneratedFormat> | null = null;
+          if (typeof formatsRaw === "string") {
+            try {
+              formatsObj = JSON.parse(formatsRaw);
+            } catch {
+              formatsObj = null;
+            }
+          } else if (formatsRaw && typeof formatsRaw === "object") {
+            formatsObj = formatsRaw as Record<string, GeneratedFormat>;
+          }
+          if (formatsObj) {
+            for (const fmt of Object.values(formatsObj)) {
+              if (fmt?.url) filesToRemove.push(path.basename(fmt.url));
+            }
+          }
+          for (const fileName of filesToRemove) {
+            const filePath = path.join(this.uploadDir, fileName);
+            try {
+              await fs.promises.unlink(filePath);
+            } catch {
+              /* file may be missing */
+            }
+          }
         }
       } catch {
         /* file may be missing */

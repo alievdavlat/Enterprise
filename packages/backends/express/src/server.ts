@@ -295,10 +295,23 @@ export class EnterpriseServer {
           { name: "caption", type: "text", nullable: true },
           { name: "alternativeText", type: "text", nullable: true },
           { name: "folderPath", type: "string", nullable: true },
+          { name: "width", type: "integer", nullable: true },
+          { name: "height", type: "integer", nullable: true },
+          { name: "formats", type: "text", nullable: true },
         ],
         timestamps: true,
       });
       console.log("[Enterprise] Table enterprise_media created");
+    } else if (typeof (this.db as { addColumnIfNotExists?: unknown }).addColumnIfNotExists === "function") {
+      // Migration for existing installs: ensure responsive-image columns exist.
+      const addCol = (this.db as { addColumnIfNotExists: (t: string, c: string, type: string, opts?: { nullable?: boolean }) => Promise<void> }).addColumnIfNotExists;
+      try {
+        await addCol("enterprise_media", "width", "integer", { nullable: true });
+        await addCol("enterprise_media", "height", "integer", { nullable: true });
+        await addCol("enterprise_media", "formats", "text", { nullable: true });
+      } catch (err) {
+        console.warn("[Enterprise] Could not migrate enterprise_media:", err);
+      }
     }
 
     // Media folders (for organizing assets)

@@ -27,3 +27,5 @@ export function createUploadPlugin(config?: UploadConfig): Plugin {
 
 export { UploadService };
 export type { UploadInput, UploadConfig, MediaRecord } from "./UploadService";
+export { ImageProcessor, DEFAULT_IMAGE_FORMATS } from "./ImageProcessor";
+export type { ImageFormatSpec, GeneratedFormat } from "./ImageProcessor";
