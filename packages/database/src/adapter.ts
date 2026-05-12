@@ -58,6 +58,39 @@ export interface DatabaseAdapter {
 
   // Raw query
   raw(query: string, params?: unknown[]): Promise<unknown>;
+
+  /**
+   * Optional: run `fn` inside a database transaction. The `trx` argument
+   * passed to `fn` is a transactional clone of this adapter — every
+   * subsequent CRUD call routes through the same connection so BEGIN /
+   * COMMIT / ROLLBACK applies as expected.
+   *
+   * Adapters that can't support real transactions (e.g. Mongo without a
+   * replica set) may omit this; consumers should use `runInTransaction()`
+   * to get a graceful fallback to non-atomic execution.
+   */
+  transaction?<T>(fn: (trx: DatabaseAdapter) => Promise<T>): Promise<T>;
+}
+
+/**
+ * Run `fn` inside a transaction if the adapter supports it; otherwise run
+ * `fn` directly with a warning. Use this from route/service code so the
+ * happy path is atomic on Postgres/SQLite while still working on adapters
+ * that don't (yet) implement transactions.
+ */
+export async function runInTransaction<T>(
+  adapter: DatabaseAdapter,
+  fn: (trx: DatabaseAdapter) => Promise<T>,
+): Promise<T> {
+  if (typeof adapter.transaction === "function") {
+    return adapter.transaction(fn);
+  }
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(
+      "[enterprise/database] transaction() not implemented for current adapter; running fn() without atomicity",
+    );
+  }
+  return fn(adapter);
 }
 
 export interface TableSchema {

@@ -255,4 +255,33 @@ export class SqliteAdapter implements DatabaseAdapter {
     const sql = toSqlitePlaceholders(query);
     return this.getDb().prepare(sql).all(...params);
   }
+
+  /**
+   * Run `fn` inside a SQLite transaction. better-sqlite3 only has a single
+   * connection so the same adapter instance is safe — we wrap with BEGIN /
+   * COMMIT / ROLLBACK against the live `db`. Nested calls re-use the active
+   * transaction (SQLite doesn't support nested BEGIN; we leave the outer
+   * scope in charge).
+   */
+  async transaction<T>(
+    fn: (trx: DatabaseAdapter) => Promise<T>,
+  ): Promise<T> {
+    const db = this.getDb();
+    const alreadyInTx = db.inTransaction;
+    if (!alreadyInTx) db.exec("BEGIN");
+    try {
+      const result = await fn(this);
+      if (!alreadyInTx) db.exec("COMMIT");
+      return result;
+    } catch (err) {
+      if (!alreadyInTx) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore — rollback may fail if BEGIN didn't take */
+        }
+      }
+      throw err;
+    }
+  }
 }

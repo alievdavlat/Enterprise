@@ -12,6 +12,11 @@ export class PostgresAdapter implements DatabaseAdapter {
   private config: DatabaseConfig;
   private queryBuilder = new QueryBuilder();
   private _isConnected = false;
+  /**
+   * When set, every getClient() returns this pinned client (with release()
+   * stubbed) so callers transparently route through the active transaction.
+   */
+  private _txClient: PoolClient | null = null;
 
   constructor(config: DatabaseConfig) {
     this.config = config;
@@ -50,8 +55,53 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   private async getClient(): Promise<PoolClient> {
+    if (this._txClient) {
+      // Inside a transaction: return the pinned client. Stub release() so the
+      // existing `try { ... } finally { client.release() }` pattern doesn't
+      // hand the connection back to the pool mid-transaction.
+      return new Proxy(this._txClient, {
+        get: (target, prop, receiver) => {
+          if (prop === "release") return () => {};
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }) as PoolClient;
+    }
     if (!this.pool) throw new Error("Not connected to PostgreSQL");
     return this.pool.connect();
+  }
+
+  /**
+   * Run `fn` inside a Postgres transaction. Acquires one connection from
+   * the pool, issues BEGIN, hands a transactional clone of this adapter to
+   * `fn`, then COMMITs (or ROLLBACKs on throw) and releases the connection.
+   */
+  async transaction<T>(
+    fn: (trx: DatabaseAdapter) => Promise<T>,
+  ): Promise<T> {
+    if (!this.pool) throw new Error("Not connected to PostgreSQL");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const child = new PostgresAdapter(this.config);
+      child.pool = this.pool;
+      child._isConnected = true;
+      child._txClient = client;
+      try {
+        const result = await fn(child);
+        await client.query("COMMIT");
+        return result;
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          /* ignore — connection may be in a bad state */
+        }
+        throw err;
+      }
+    } finally {
+      client.release();
+    }
   }
 
   async findMany(

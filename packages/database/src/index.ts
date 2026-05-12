@@ -1,4 +1,4 @@
-export { createDatabaseAdapter } from "./adapter";
+export { createDatabaseAdapter, runInTransaction } from "./adapter";
 export type { DatabaseAdapter, TableSchema, ColumnDefinition } from "./adapter";
 export { PostgresAdapter } from "./adapters/PostgresAdapter";
 export { MysqlAdapter } from "./adapters/MysqlAdapter";
