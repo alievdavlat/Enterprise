@@ -41,6 +41,7 @@ import { createContentTypeRouter } from "./routes/content-types";
 import { createMediaRouter } from "./routes/media";
 import { createWebhookRouter } from "./routes/webhooks";
 import { createAdminRouter } from "./routes/admin";
+import { createPreviewRouter, createAdminPreviewRouter } from "./routes/preview";
 import { createGraphQLServer } from "./graphql/server";
 import { authMiddleware, adminAuthMiddleware, createContentApiAuth } from "./middlewares/auth";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -363,6 +364,22 @@ export class EnterpriseServer {
       } catch {
         /* best-effort migration */
       }
+    }
+
+    // Preview tokens (Strapi v5: short-lived tokens that grant public read of a draft entry)
+    if (!(await this.db.tableExists("enterprise_preview_tokens"))) {
+      await this.db.createTable("enterprise_preview_tokens", {
+        columns: [
+          { name: "token", type: "string", nullable: false, unique: true },
+          { name: "uid", type: "string", nullable: false },
+          { name: "documentId", type: "string", nullable: true },
+          { name: "entryId", type: "integer", nullable: true },
+          { name: "expiresAt", type: "datetime", nullable: false },
+          { name: "userId", type: "integer", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_preview_tokens created");
     }
 
     // Content history / versioning (Strapi v5 Enterprise: revision per update/publish)
@@ -791,6 +808,21 @@ export class EnterpriseServer {
       `${apiPrefix}/webhooks`,
       authMiddleware,
       createWebhookRouter(this.db),
+    );
+
+    // Preview tokens — admin endpoints mint/revoke, public endpoint resolves.
+    // The public preview route is intentionally NOT behind contentApiAuth: the
+    // token IS the authentication, and front-end pages need to fetch drafts
+    // without a session.
+    const previewUrlBuilder = this.config.api?.preview?.url;
+    this.app.use(
+      `${apiPrefix}/admin/preview-tokens`,
+      adminAuthMiddleware,
+      createAdminPreviewRouter(this.db, { previewUrlBuilder }),
+    );
+    this.app.use(
+      `${apiPrefix}/preview`,
+      createPreviewRouter(this.schemaRegistry, this.db, this.documentService),
     );
   }
 

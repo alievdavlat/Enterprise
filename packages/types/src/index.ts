@@ -431,6 +431,19 @@ export interface EnterpriseConfig {
       playground?: boolean;
       shadowCRUD?: boolean;
     };
+    preview?: {
+      /**
+       * Build the front-end preview URL for an entry. Returned to the admin
+       * UI when a preview token is minted so the editor can click through
+       * to the headless front-end with the draft applied.
+       */
+      url?: (input: {
+        uid: string;
+        documentId?: string;
+        entryId?: number | string;
+        token: string;
+      }) => string | undefined;
+    };
   };
   plugins?: Record<string, PluginConfig>;
   middlewares?: (string | MiddlewareConfig)[];
