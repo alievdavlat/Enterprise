@@ -100,6 +100,8 @@ export interface Plugin {
   routes?: RouteDefinition[];
   middlewares?: MiddlewareDefinition[];
   hooks?: HookDefinition[];
+  /** Plugin-exposed services accessible via `app.plugin(name).services` (Strapi-style). */
+  services?: Record<string, unknown>;
 }
 
 // ---- Hook Types ----

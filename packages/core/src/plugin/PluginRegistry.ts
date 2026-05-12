@@ -2,7 +2,7 @@ import type { Plugin, EnterpriseApp } from "@enterprise/types";
 
 /**
  * Enterprise Plugin Registry
- * Manages registration, resolution, and lifecycle of all plugins
+ * Manages registration, resolution, and lifecycle of all plugins.
  */
 export class PluginRegistry {
   private plugins: Map<string, Plugin> = new Map();
@@ -12,9 +12,6 @@ export class PluginRegistry {
     this.app = app;
   }
 
-  /**
-   * Register a plugin with the CMS
-   */
   register(plugin: Plugin): void {
     if (this.plugins.has(plugin.name)) {
       console.warn(
@@ -26,30 +23,18 @@ export class PluginRegistry {
     console.log(`[Enterprise] Plugin "${plugin.name}" registered.`);
   }
 
-  /**
-   * Get a registered plugin by name
-   */
   get(name: string): Plugin | undefined {
     return this.plugins.get(name);
   }
 
-  /**
-   * Check if a plugin is registered
-   */
   has(name: string): boolean {
     return this.plugins.has(name);
   }
 
-  /**
-   * Get all registered plugins
-   */
   getAll(): Plugin[] {
     return Array.from(this.plugins.values());
   }
 
-  /**
-   * Run 'register' lifecycle on all plugins
-   */
   async runRegister(): Promise<void> {
     for (const plugin of this.plugins.values()) {
       if (plugin.register) {
@@ -69,9 +54,6 @@ export class PluginRegistry {
     }
   }
 
-  /**
-   * Run 'bootstrap' lifecycle on all plugins
-   */
   async runBootstrap(): Promise<void> {
     for (const plugin of this.plugins.values()) {
       if (plugin.bootstrap) {
@@ -91,9 +73,6 @@ export class PluginRegistry {
     }
   }
 
-  /**
-   * Run 'destroy' lifecycle on all plugins (on shutdown)
-   */
   async runDestroy(): Promise<void> {
     for (const plugin of this.plugins.values()) {
       if (plugin.destroy) {
@@ -110,63 +89,29 @@ export class PluginRegistry {
   }
 }
 
-// ---- Built-in Plugin Implementations ----
+// ---- Built-in plugin factories (real implementations live in ./built-in/*) ----
 
-/** i18n Plugin */
-export const i18nPlugin: Plugin = {
-  name: "i18n",
-  version: "1.0.0",
-  description: "Internationalization support for content types",
-  register(app) {
-    console.log("[Plugin:i18n] Registered");
-  },
-  bootstrap(app) {
-    console.log("[Plugin:i18n] Bootstrapped");
-  },
-};
+export { createEmailPlugin } from "./built-in/email";
+export { createI18nPlugin } from "./built-in/i18n";
+export { createUploadPlugin } from "./built-in/upload";
+export { createUsersPermissionsPlugin } from "./built-in/users-permissions";
+export { createSeoPlugin } from "./built-in/seo";
 
-/** Upload Plugin */
-export const uploadPlugin: Plugin = {
-  name: "upload",
-  version: "1.0.0",
-  description: "Media library and file upload management",
-  register(app) {
-    console.log("[Plugin:upload] Registered");
-  },
-  bootstrap(app) {
-    console.log("[Plugin:upload] Bootstrapped - Media library ready");
-  },
-};
+// ---- Back-compat shims (deprecated; prefer the create* factories) ----
 
-/** Users-Permissions Plugin */
-export const usersPermissionsPlugin: Plugin = {
-  name: "users-permissions",
-  version: "1.0.0",
-  description: "User registration, authentication, and permissions",
-  register(app) {
-    console.log("[Plugin:users-permissions] Registered");
-  },
-  bootstrap(app) {
-    console.log("[Plugin:users-permissions] Bootstrapped");
-  },
-};
+import { createEmailPlugin as _email } from "./built-in/email";
+import { createI18nPlugin as _i18n } from "./built-in/i18n";
+import { createUploadPlugin as _upload } from "./built-in/upload";
+import { createUsersPermissionsPlugin as _users } from "./built-in/users-permissions";
+import { createSeoPlugin as _seo } from "./built-in/seo";
 
-/** Email Plugin */
-export const emailPlugin: Plugin = {
-  name: "email",
-  version: "1.0.0",
-  description: "Email sending capabilities",
-  register(app) {
-    console.log("[Plugin:email] Registered");
-  },
-};
-
-/** SEO Plugin */
-export const seoPlugin: Plugin = {
-  name: "seo",
-  version: "1.0.0",
-  description: "SEO metadata management for content types",
-  register(app) {
-    console.log("[Plugin:seo] Registered");
-  },
-};
+/** @deprecated Use `createEmailPlugin()` from `@enterprise/core`. */
+export const emailPlugin: Plugin = _email();
+/** @deprecated Use `createI18nPlugin()` from `@enterprise/core`. */
+export const i18nPlugin: Plugin = _i18n();
+/** @deprecated Use `createUploadPlugin()` from `@enterprise/core`. */
+export const uploadPlugin: Plugin = _upload();
+/** @deprecated Use `createUsersPermissionsPlugin()` from `@enterprise/core`. */
+export const usersPermissionsPlugin: Plugin = _users();
+/** @deprecated Use `createSeoPlugin()` from `@enterprise/core`. */
+export const seoPlugin: Plugin = _seo();

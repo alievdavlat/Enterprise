@@ -20,6 +20,11 @@ import {
   ServiceRegistry,
   CronManager,
   buildOpenApiSpec,
+  createEmailPlugin,
+  createI18nPlugin,
+  createUploadPlugin,
+  createUsersPermissionsPlugin,
+  createSeoPlugin,
 } from "@enterprise/core";
 import { createDatabaseAdapter, type DatabaseAdapter } from "@enterprise/database";
 import type { EnterpriseConfig } from "@enterprise/types";
@@ -444,6 +449,28 @@ export class EnterpriseServer {
     } catch (err) {
       console.warn("[Enterprise] Services loader failed:", err);
     }
+    // Built-in plugins. Each ships a real service accessible via
+    // `app.plugin('<name>').services.*`. User plugins (loadPluginsFromPath)
+    // run after so they can override or extend these.
+    try {
+      const pluginToggles = await this.readPluginToggles();
+      const builtIns: { name: string; factory: () => import("@enterprise/types").Plugin }[] = [
+        { name: "email", factory: () => createEmailPlugin() },
+        { name: "upload", factory: () => createUploadPlugin() },
+        { name: "i18n", factory: () => createI18nPlugin() },
+        { name: "users-permissions", factory: () => createUsersPermissionsPlugin() },
+        { name: "seo", factory: () => createSeoPlugin() },
+      ];
+      for (const b of builtIns) {
+        if (pluginToggles[b.name] === false) {
+          console.log(`[Enterprise] Built-in plugin "${b.name}" disabled via admin::plugins toggle`);
+          continue;
+        }
+        this.pluginRegistry.register(b.factory());
+      }
+    } catch (err) {
+      console.warn("[Enterprise] Built-in plugin registration failed:", err);
+    }
     try {
       this.discoveredPlugins = await loadPluginsFromPath(userProjectRoot, this.pluginRegistry, this);
       if (this.discoveredPlugins.registered.length > 0) {
@@ -836,6 +863,27 @@ export class EnterpriseServer {
     }
     await this.db.disconnect();
     console.log("[Enterprise] Server stopped");
+  }
+
+  /**
+   * Read the admin::plugins toggle map from core_store. Used to opt-out of a
+   * built-in plugin from the admin UI without redeploying.
+   */
+  private async readPluginToggles(): Promise<Record<string, boolean>> {
+    try {
+      if (!(await this.db.tableExists("enterprise_core_store_settings"))) return {};
+      const row = await this.db.findOneBy("enterprise_core_store_settings", {
+        key: "admin::plugins",
+      });
+      const value = (row as { value?: string } | null)?.value;
+      if (typeof value !== "string" || !(value.startsWith("{") || value.startsWith("["))) {
+        return {};
+      }
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" ? (parsed as Record<string, boolean>) : {};
+    } catch {
+      return {};
+    }
   }
 
   /** Diagnostics for admin UI: discovered plugins/middlewares/cron/services. */
