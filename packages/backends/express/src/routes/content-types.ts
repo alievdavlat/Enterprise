@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import type { SchemaRegistry, DocumentService, PermissionManager } from "@enterprise/core";
 import type { ContentTypeSchema, FindManyParams, DocumentId } from "@enterprise/types";
 import type { DatabaseAdapter } from "@enterprise/database";
+import { runInTransaction } from "@enterprise/database";
 import type { LifecycleManager } from "@enterprise/core";
 import { ensureTableForSchema } from "../loadSchemasFromDb";
 import { requirePermission } from "../middlewares/auth";
@@ -511,6 +512,173 @@ export function createContentTypeRouter(
               result: withDocId,
             });
             res.json({ data: afterCtx.result ?? withDocId });
+          } catch (err) {
+            next(err);
+          }
+        },
+      );
+
+      // ---- Bulk operations (Strapi-style) ----
+      // POST /api/{plural}/bulk  body: { data: [ ... ] }
+      router.post(
+        `/${pluralName}/bulk`,
+        guard(uid, "create"),
+        async (req: Request, res: Response, next: NextFunction) => {
+          try {
+            const items = Array.isArray(req.body?.data) ? req.body.data : null;
+            if (!items || items.length === 0) {
+              return res.status(400).json({
+                error: { status: 400, message: "data must be a non-empty array" },
+              });
+            }
+            const attrs = (schema.attributes || {}) as Record<string, FieldConfig>;
+            await ensureTableForSchema(db, schema);
+            // Pre-validate every item so we fail fast before opening the tx.
+            const validated: Record<string, unknown>[] = [];
+            for (let i = 0; i < items.length; i++) {
+              const { data: vd, errors } = validateAndApplyDefaults(items[i], attrs, false);
+              if (errors.length > 0) {
+                return res.status(400).json({
+                  error: { status: 400, message: `Validation error at index ${i}`, details: errors },
+                });
+              }
+              validated.push(vd);
+            }
+            const created = await runInTransaction(db, async () => {
+              const out: Record<string, unknown>[] = [];
+              for (const data of validated) {
+                await lifecycleManager.run("beforeCreate", {
+                  model: uid,
+                  action: "beforeCreate",
+                  params: { data },
+                });
+                const row = (await documentService.documents(uid).create({
+                  data,
+                })) as unknown as Record<string, unknown>;
+                await lifecycleManager.run("afterCreate", {
+                  model: uid,
+                  action: "afterCreate",
+                  params: { data },
+                  result: row,
+                });
+                out.push(stripPrivateFields(row, attrs));
+              }
+              return out;
+            });
+            res.status(201).json({ data: created, meta: { count: created.length } });
+          } catch (err) {
+            next(err);
+          }
+        },
+      );
+
+      // PUT /api/{plural}/bulk  body: { updates: [ { id, data } ] }
+      router.put(
+        `/${pluralName}/bulk`,
+        guard(uid, "update"),
+        async (req: Request, res: Response, next: NextFunction) => {
+          try {
+            const updates = Array.isArray(req.body?.updates) ? req.body.updates : null;
+            if (!updates || updates.length === 0) {
+              return res.status(400).json({
+                error: { status: 400, message: "updates must be a non-empty array" },
+              });
+            }
+            const attrs = (schema.attributes || {}) as Record<string, FieldConfig>;
+            await ensureTableForSchema(db, schema);
+            const updated = await runInTransaction(db, async () => {
+              const out: Record<string, unknown>[] = [];
+              for (let i = 0; i < updates.length; i++) {
+                const { id, data } = updates[i] ?? {};
+                if (id == null || !data) {
+                  throw new Error(`updates[${i}] missing id or data`);
+                }
+                const { data: vd, errors } = validateAndApplyDefaults(data, attrs, true);
+                if (errors.length > 0) {
+                  throw new Error(`Validation error at index ${i}: ${errors.join("; ")}`);
+                }
+                await lifecycleManager.run("beforeUpdate", {
+                  model: uid,
+                  action: "beforeUpdate",
+                  params: { id, data: vd },
+                });
+                let row: Record<string, unknown>;
+                const idStr = String(id);
+                if (looksLikeDocumentId(idStr)) {
+                  row = (await documentService.documents(uid).update({
+                    documentId: idStr as DocumentId,
+                    data: vd,
+                  })) as unknown as Record<string, unknown>;
+                } else {
+                  const idVal = Number(idStr) || idStr;
+                  row = await db.update(schema.collectionName, idVal, vd);
+                }
+                await lifecycleManager.run("afterUpdate", {
+                  model: uid,
+                  action: "afterUpdate",
+                  params: { id, data: vd },
+                  result: row,
+                });
+                out.push(stripPrivateFields(ensureDocumentId(row), attrs));
+              }
+              return out;
+            });
+            res.json({ data: updated, meta: { count: updated.length } });
+          } catch (err) {
+            next(err);
+          }
+        },
+      );
+
+      // DELETE /api/{plural}/bulk  body: { ids: [ ... ] } OR ?ids=1,2,3
+      router.delete(
+        `/${pluralName}/bulk`,
+        guard(uid, "delete"),
+        async (req: Request, res: Response, next: NextFunction) => {
+          try {
+            let ids: (string | number)[] = [];
+            const bodyIds = req.body?.ids;
+            if (Array.isArray(bodyIds)) {
+              ids = bodyIds;
+            } else if (typeof req.query.ids === "string") {
+              ids = (req.query.ids as string).split(",").map((s) => s.trim()).filter(Boolean);
+            }
+            if (ids.length === 0) {
+              return res.status(400).json({
+                error: { status: 400, message: "ids must be a non-empty array" },
+              });
+            }
+            const deleted = await runInTransaction(db, async () => {
+              const out: Record<string, unknown>[] = [];
+              for (const id of ids) {
+                await lifecycleManager.run("beforeDelete", {
+                  model: uid,
+                  action: "beforeDelete",
+                  params: { id },
+                });
+                let row: Record<string, unknown> | null;
+                const idStr = String(id);
+                if (looksLikeDocumentId(idStr)) {
+                  row = (await documentService.documents(uid).delete({
+                    documentId: idStr as DocumentId,
+                  })) as unknown as Record<string, unknown>;
+                } else {
+                  const idVal = Number(idStr) || idStr;
+                  row = await db.delete(schema.collectionName, idVal);
+                }
+                if (row) {
+                  await lifecycleManager.run("afterDelete", {
+                    model: uid,
+                    action: "afterDelete",
+                    params: { id },
+                    result: row,
+                  });
+                  out.push(ensureDocumentId(row));
+                }
+              }
+              return out;
+            });
+            res.json({ data: deleted, meta: { count: deleted.length } });
           } catch (err) {
             next(err);
           }
