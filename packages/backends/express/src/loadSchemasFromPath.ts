@@ -1,7 +1,12 @@
 import fs from "fs";
 import path from "path";
 import type { SchemaRegistry } from "@enterprise/core";
-import { loadStrapiSchema, type StrapiSchemaJson } from "@enterprise/core";
+import {
+  loadStrapiSchema,
+  loadStrapiComponent,
+  type StrapiSchemaJson,
+  type StrapiComponentJson,
+} from "@enterprise/core";
 import type { ContentTypeSchema } from "@enterprise/types";
 
 /**
@@ -73,7 +78,49 @@ function loadFromStrapiApiDir(
 }
 
 /**
- * Load schemas from project: first schema/ (Enterprise native), then src/api (Strapi layout).
+ * Strapi-style components: `src/components/<category>/<name>.json`. Each
+ * registers as a ContentTypeSchema with `kind: "component"` so the existing
+ * schema-driven table creation picks them up.
+ */
+function loadFromStrapiComponentsDir(
+  projectRoot: string,
+  schemaRegistry: SchemaRegistry,
+): number {
+  const componentsDir = path.join(projectRoot, "src", "components");
+  if (!fs.existsSync(componentsDir) || !fs.statSync(componentsDir).isDirectory()) return 0;
+
+  let count = 0;
+  const categories = fs.readdirSync(componentsDir);
+  for (const category of categories) {
+    const categoryPath = path.join(componentsDir, category);
+    if (!fs.statSync(categoryPath).isDirectory()) continue;
+    const files = fs.readdirSync(categoryPath).filter((f) => f.endsWith(".json"));
+    for (const file of files) {
+      const name = file.replace(/\.json$/, "");
+      const filePath = path.join(categoryPath, file);
+      try {
+        const raw = fs.readFileSync(filePath, "utf8");
+        const manifest: StrapiComponentJson = JSON.parse(raw);
+        const schema = loadStrapiComponent(manifest, category, name);
+        if (schemaRegistry.has(schema.uid)) continue;
+        schemaRegistry.register(schema);
+        count++;
+      } catch (err) {
+        console.warn(
+          `[Enterprise] Failed to load component ${category}/${name}:`,
+          err,
+        );
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Load schemas from project. Order matches Strapi: first the schema-as-code
+ * folder (`schema/`), then `src/api/.../content-types/*.json`, then
+ * `src/components/<category>/<name>.json`. Each loader skips uids already in
+ * the registry so DB-sourced schemas take precedence.
  */
 export async function loadSchemasFromPath(
   projectRoot: string,
@@ -81,5 +128,6 @@ export async function loadSchemasFromPath(
 ): Promise<number> {
   const fromSchemaDir = loadFromSchemaDir(projectRoot, schemaRegistry);
   const fromStrapi = loadFromStrapiApiDir(projectRoot, schemaRegistry);
-  return fromSchemaDir + fromStrapi;
+  const fromComponents = loadFromStrapiComponentsDir(projectRoot, schemaRegistry);
+  return fromSchemaDir + fromStrapi + fromComponents;
 }

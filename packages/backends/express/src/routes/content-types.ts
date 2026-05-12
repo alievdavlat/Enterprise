@@ -285,7 +285,11 @@ export function createContentTypeRouter(
   function registerContentTypeRoutes(schema: ContentTypeSchema): void {
     const { uid, pluralName, singularName, kind } = schema;
 
-    if (kind === "collectionType" || kind === "component" || kind === "dynamiczone") {
+    // Strapi-style: only collection types get public REST routes.
+    // Components / dynamic zones are embedded inside content-type entries and
+    // accessed via populate, not directly. Single types use their own block
+    // below.
+    if (kind === "collectionType") {
       // GET /api/{plural} - find many
       router.get(
         `/${pluralName}`,

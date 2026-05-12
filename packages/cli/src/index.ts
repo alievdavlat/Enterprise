@@ -258,9 +258,32 @@ program
         );
         break;
       }
+      case "component": {
+        // safeName form: "<category>.<name>" (e.g. shared.hero). Falls back to
+        // "shared.<name>" when only one segment is supplied so users don't have
+        // to remember the category up front.
+        const parts = safeName.split(".");
+        const category = parts.length > 1 ? parts[0] : "shared";
+        const componentName = parts.length > 1 ? parts.slice(1).join(".") : parts[0];
+        const dir = path.join(cwd, "src", "components", category);
+        const file = path.join(dir, `${componentName}.json`);
+        fs.ensureDirSync(dir);
+        if (fs.existsSync(file)) {
+          console.error(chalk.red(`Already exists: ${file}`));
+          process.exit(1);
+        }
+        const manifest = {
+          collectionName: `components_${category}_${componentName}`,
+          info: { displayName: componentName, description: "" },
+          attributes: { title: { type: "string", required: true } },
+        };
+        fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+        console.log(chalk.green("created  ") + path.relative(cwd, file));
+        break;
+      }
       default:
         console.error(
-          chalk.red(`Unknown generator "${kind}". Use one of: plugin | middleware | api | service | lifecycles | cron`),
+          chalk.red(`Unknown generator "${kind}". Use one of: plugin | middleware | api | service | lifecycles | cron | component`),
         );
         process.exit(1);
     }

@@ -44,6 +44,77 @@ export function buildContentTypeUid(apiName: string, contentTypeName: string): s
 }
 
 /**
+ * Build component uid like Strapi: <category>.<name> (e.g. `shared.hero`).
+ */
+export function buildComponentUid(category: string, name: string): string {
+  return `${category}.${name}`;
+}
+
+/**
+ * Strapi-style component schema. `src/components/<category>/<name>.json`.
+ * Same attribute format as a content type but without `kind` / draftAndPublish.
+ */
+export interface StrapiComponentJson {
+  collectionName?: string;
+  info?: {
+    displayName?: string;
+    icon?: string;
+    description?: string;
+  };
+  options?: Record<string, unknown>;
+  attributes: StrapiSchemaJson["attributes"];
+}
+
+/**
+ * Convert a Strapi-style component manifest into our ContentTypeSchema (with
+ * `kind: "component"`). Table name follows the Strapi convention
+ * `components_<category>_<name>` unless `collectionName` is set explicitly.
+ */
+export function loadStrapiComponent(
+  manifest: StrapiComponentJson,
+  category: string,
+  name: string,
+): ContentTypeSchema {
+  const uid = buildComponentUid(category, name);
+  const info = manifest.info || {};
+  const attributes: Record<string, FieldDefinition> = {};
+
+  for (const [attrName, attr] of Object.entries(manifest.attributes || {})) {
+    const a = attr as StrapiSchemaJson["attributes"][string];
+    attributes[attrName] = {
+      name: attrName,
+      type: toFieldType(a.type),
+      required: a.required,
+      unique: a.unique,
+      default: a.default,
+      minLength: a.minLength,
+      maxLength: a.maxLength,
+      min: a.min,
+      max: a.max,
+      enum: a.enum,
+      relation: a.relation as FieldDefinition["relation"],
+      target: a.target,
+    };
+  }
+
+  const collectionName =
+    manifest.collectionName ?? `components_${category}_${name}`;
+
+  return {
+    uid,
+    kind: "component",
+    collectionName,
+    displayName: info.displayName || name,
+    singularName: name,
+    pluralName: `${name}s`,
+    description: info.description,
+    timestamps: true,
+    category,
+    attributes,
+  };
+}
+
+/**
  * Map Strapi attribute type string to our FieldType
  */
 function toFieldType(type: string): FieldType {

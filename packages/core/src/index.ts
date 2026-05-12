@@ -42,8 +42,11 @@ export { QueryBuilder } from "./query/QueryBuilder";
 export { DocumentService } from "./document/DocumentService";
 export {
   loadStrapiSchema,
+  loadStrapiComponent,
   buildContentTypeUid,
+  buildComponentUid,
   type StrapiSchemaJson,
+  type StrapiComponentJson,
 } from "./schema/loadStrapiSchema";
 export { PermissionManager, type PermissionRule, type Action, type Role } from "./permissions/PermissionManager";
 export {
