@@ -280,6 +280,124 @@ program
     }
   });
 
+const migrateCmd = program
+  .command("migrate")
+  .description("Run, roll back, or inspect database migrations");
+
+/**
+ * Lazy load @enterprise/database + a config-driven adapter from the current
+ * project. CLI runs from the user's app directory so we resolve via require
+ * relative to cwd, just like next/strapi.
+ */
+async function loadMigrationContext() {
+  const cwd = process.cwd();
+  const { createDatabaseAdapter, MigrationRunner } = require(require.resolve(
+    "@enterprise/database",
+    { paths: [cwd, __dirname] },
+  ));
+  const dotenv = require(require.resolve("dotenv", { paths: [cwd, __dirname] }));
+  dotenv.config({ path: path.join(cwd, ".env") });
+
+  // Mirror EnterpriseServer.initialize() database config resolution from env.
+  const client = process.env.DB_CLIENT || "sqlite";
+  const dbConfig: Record<string, unknown> = { client };
+  if (client === "sqlite") {
+    dbConfig.database = process.env.DB_FILENAME || "./.tmp/data.db";
+  } else {
+    dbConfig.host = process.env.DB_HOST;
+    dbConfig.port = process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined;
+    dbConfig.database = process.env.DB_NAME;
+    dbConfig.username = process.env.DB_USER;
+    dbConfig.password = process.env.DB_PASSWORD;
+  }
+  const db = await createDatabaseAdapter(dbConfig);
+  await db.connect();
+  const migrationsDir = path.join(cwd, "database", "migrations");
+  const runner = new MigrationRunner({ db, migrationsDir });
+  return { db, runner, migrationsDir };
+}
+
+migrateCmd
+  .command("up")
+  .description("Apply every pending migration")
+  .action(async () => {
+    try {
+      const { db, runner } = await loadMigrationContext();
+      const applied = await runner.up();
+      if (applied.length === 0) console.log(chalk.green("Already up to date."));
+      else console.log(chalk.green(`Applied ${applied.length} migration(s):`), applied.join(", "));
+      await db.disconnect();
+    } catch (err) {
+      console.error(chalk.red("migrate up failed:"), err);
+      process.exit(1);
+    }
+  });
+
+migrateCmd
+  .command("down")
+  .description("Roll back the most recent migration(s)")
+  .option("--steps <n>", "How many migrations to roll back", "1")
+  .action(async (opts: { steps?: string }) => {
+    try {
+      const { db, runner } = await loadMigrationContext();
+      const steps = Math.max(1, parseInt(opts.steps ?? "1", 10) || 1);
+      const rolled = await runner.down(steps);
+      if (rolled.length === 0) console.log(chalk.yellow("Nothing to roll back."));
+      else console.log(chalk.green(`Rolled back ${rolled.length} migration(s):`), rolled.join(", "));
+      await db.disconnect();
+    } catch (err) {
+      console.error(chalk.red("migrate down failed:"), err);
+      process.exit(1);
+    }
+  });
+
+migrateCmd
+  .command("status")
+  .description("Show pending and executed migrations")
+  .action(async () => {
+    try {
+      const { db, runner } = await loadMigrationContext();
+      const status = await runner.status();
+      if (status.length === 0) {
+        console.log(chalk.yellow("No migration files found in database/migrations/."));
+      } else {
+        for (const s of status) {
+          const mark = s.executed ? chalk.green("✔") : chalk.yellow("·");
+          const time = s.executedAt ? chalk.gray(` ${s.executedAt}`) : "";
+          console.log(`${mark} ${s.name}${time}`);
+        }
+      }
+      await db.disconnect();
+    } catch (err) {
+      console.error(chalk.red("migrate status failed:"), err);
+      process.exit(1);
+    }
+  });
+
+migrateCmd
+  .command("create <name>")
+  .description("Generate a new migration file in database/migrations/")
+  .action(async (name: string) => {
+    try {
+      const { buildMigrationFilename, migrationTemplate } = require(require.resolve(
+        "@enterprise/database",
+        { paths: [process.cwd(), __dirname] },
+      ));
+      const dir = path.join(process.cwd(), "database", "migrations");
+      fs.ensureDirSync(dir);
+      const file = path.join(dir, buildMigrationFilename(name));
+      if (fs.existsSync(file)) {
+        console.error(chalk.red(`Already exists: ${file}`));
+        process.exit(1);
+      }
+      fs.writeFileSync(file, migrationTemplate(), "utf8");
+      console.log(chalk.green("created  ") + path.relative(process.cwd(), file));
+    } catch (err) {
+      console.error(chalk.red("migrate create failed:"), err);
+      process.exit(1);
+    }
+  });
+
 program
   .command("create", { isDefault: true })
   .description("Create a new Enterprise CMS project")
