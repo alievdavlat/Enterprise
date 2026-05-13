@@ -30,6 +30,9 @@ import {
   ArrowRight,
   Activity,
   HardDrive,
+  Layers,
+  Network,
+  KeyRound,
 } from "lucide-react";
 
 type DbInfo = {
@@ -99,8 +102,20 @@ const SHORTCUTS: { group: string; items: ShortcutCard[] }[] = [
       {
         href: "/settings/cron",
         title: "Cron Jobs",
-        description: "Scheduled background tasks",
+        description: "Scheduled background tasks — create from UI, no restart",
         icon: Clock,
+      },
+      {
+        href: "/settings/user-middlewares",
+        title: "Middlewares",
+        description: "Author Express middlewares from the UI (hot reload)",
+        icon: Layers,
+      },
+      {
+        href: "/settings/user-routes",
+        title: "Custom Routes",
+        description: "Build your own REST endpoints under /api/u/...",
+        icon: Network,
       },
       {
         href: "/settings/api-docs",
@@ -157,9 +172,15 @@ const SHORTCUTS: { group: string; items: ShortcutCard[] }[] = [
         icon: Mail,
       },
       {
+        href: "/settings/auth-providers",
+        title: "Auth Providers",
+        description: "Sign-in with GitHub, Discord, Google, Microsoft & more",
+        icon: KeyRound,
+      },
+      {
         href: "/settings/sso",
         title: "Single Sign-On",
-        description: "SAML / OIDC providers",
+        description: "SAML / enterprise OIDC providers",
         icon: Lock,
         badge: "Pro",
       },
