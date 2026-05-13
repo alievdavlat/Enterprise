@@ -104,7 +104,19 @@ function BuilderInner() {
 
       {/* Tabs */}
       <Tabs value={active} onValueChange={(v) => setActive(v as TabId)} className="space-y-6">
-        <TabsList className="h-auto p-1.5 bg-muted/40 backdrop-blur w-full justify-start gap-1 flex-wrap rounded-xl border border-border/50 overflow-x-auto">
+        <TabsList
+          className={[
+            // The base variant forces h-8 (32px). Our triggers are 40px so
+            // we explicitly raise the container — important enough to leave
+            // the comment, the clipped descenders were a real bug.
+            "!h-auto min-h-14 p-1.5",
+            "bg-muted/40 backdrop-blur",
+            "w-full justify-start gap-1",
+            "rounded-xl border border-border/50",
+            // Horizontal scroll on narrow screens, no vertical bar.
+            "overflow-x-auto overflow-y-hidden",
+            "flex-nowrap",
+          ].join(" ")}>
           {TABS.map(({ id, label, icon: Icon, available, phase, hint }) => (
             <TabsTrigger
               key={id}
@@ -112,7 +124,7 @@ function BuilderInner() {
               disabled={!available}
               title={available ? hint : `Coming in Phase ${phase}`}
               className={[
-                "group relative flex items-center gap-2 h-10 px-4 rounded-lg",
+                "group relative flex items-center gap-2 h-10 px-4 rounded-lg shrink-0 whitespace-nowrap",
                 "text-sm font-medium transition-all",
                 "data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-foreground",
                 "data-[state=inactive]:text-muted-foreground hover:text-foreground hover:bg-background/60",
