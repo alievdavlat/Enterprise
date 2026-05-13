@@ -15,7 +15,6 @@ import {
   Shield,
   Users,
   Mail,
-  UserCog,
   FileText,
   Wrench,
   History,
@@ -116,7 +115,8 @@ const SECTIONS: Section[] = [
   {
     title: "Users & permissions",
     items: [
-      { href: "/settings/roles", label: "Roles", icon: UserCog },
+      // Roles live under "Administration panel" — same /settings/roles URL,
+      // no duplicate entry here.
       { href: "/settings/users-permissions/email-templates", label: "Email templates", icon: FileText },
       { href: "/settings/users-permissions/advanced", label: "Advanced settings", icon: Wrench },
     ],
