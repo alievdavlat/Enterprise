@@ -32,7 +32,7 @@ export function EmptyState({
 }) {
   return (
     <div className="relative px-6 py-16 md:py-20 text-center overflow-hidden">
-      <div className="absolute inset-0 bg-mesh opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-mesh opacity-50 pointer-events-none" />
       <div className="relative max-w-md mx-auto space-y-5">
         <div className="flex justify-center">
           {illustration ?? (

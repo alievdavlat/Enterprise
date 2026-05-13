@@ -81,10 +81,11 @@ export default function Dashboard() {
 
   return (
     <div className="relative animate-in fade-in duration-500">
-      {/* Hero — gradient mesh is illustration-art, allowed to be expressive */}
+      {/* Hero — single subtle brand glow in the top-left, rest stays neutral
+          dark per user direction. No rainbow wash. */}
       <section className="relative overflow-hidden border-b border-border/40">
-        <div className="absolute inset-0 bg-mesh opacity-60 pointer-events-none" />
-        <div className="absolute inset-0 bg-grid opacity-25 pointer-events-none [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute inset-0 bg-mesh pointer-events-none" />
+        <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none [mask-image:linear-gradient(to_bottom,black,transparent)]" />
         <div className="relative p-6 md:p-10 space-y-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-start gap-4">

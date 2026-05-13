@@ -179,13 +179,26 @@
  * Decorative utilities
  * ---------------------------------------------------------------------- */
 
-/** Soft animated gradient mesh — login + hero panels. */
+/**
+ * Hero/splash background.
+ *
+ * User direction: dashboard must read dark — no rainbow wash. We keep a
+ * single, very subtle brand glow in the top-left corner only; the rest of
+ * the surface stays neutral. Login splash can opt into the more expressive
+ * `.bg-mesh-vivid` variant where multi-colour is desirable.
+ */
 .bg-mesh {
   background-image:
-    radial-gradient(at 0% 0%, hsl(var(--brand-violet) / 0.18) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, hsl(var(--brand-blue) / 0.14) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, hsl(var(--brand-pink) / 0.12) 0px, transparent 50%),
-    radial-gradient(at 0% 80%, hsl(var(--brand-emerald) / 0.10) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, hsl(var(--brand-violet) / 0.08) 0px, transparent 55%);
+}
+
+/** Multi-colour variant — reserved for login splash / marketing pages. */
+.bg-mesh-vivid {
+  background-image:
+    radial-gradient(at 0% 0%, hsl(var(--brand-violet) / 0.20) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsl(var(--brand-blue) / 0.16) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsl(var(--brand-pink) / 0.14) 0px, transparent 50%),
+    radial-gradient(at 0% 80%, hsl(var(--brand-emerald) / 0.12) 0px, transparent 50%);
 }
 
 /** Static grid overlay — adds depth to hero / empty states. */
