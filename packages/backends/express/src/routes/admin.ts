@@ -31,12 +31,21 @@ export function createAdminRouter(
     };
     /** Re-sync PermissionManager from `enterprise_permissions` after role edits. */
     reloadPermissions?: () => Promise<void> | void;
+    /** Re-evaluate backup schedule (register/unregister cron) after admin saves it. */
+    applyBackupSchedule?: () => Promise<void> | void;
+    /** Run a backup right now; returns the written file path. */
+    runBackupNow?: () => Promise<string | null>;
+    /** List existing backup files so the UI can render history. */
+    listBackups?: () => Promise<{ name: string; size: number; createdAt: string }[]>;
+    /** Rebuild the user-defined cron jobs after CRUD on enterprise_user_cron_jobs. */
+    reloadUserCronJobs?: () => Promise<void> | void;
   },
 ): Router {
   const router = Router();
   const getProjectRoot = options?.getProjectRoot;
   const getDiscoveredArtifacts = options?.getDiscoveredArtifacts;
   const reloadPermissions = options?.reloadPermissions;
+  const reloadUserCronJobs = options?.reloadUserCronJobs;
 
   // ---- System / Discovered artifacts ----
   router.get("/system", (_req: Request, res: Response) => {
@@ -230,12 +239,21 @@ export function createAdminRouter(
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const includeContent = req.query.includeContent === "1" || req.query.includeContent === "true";
+        const includeUploads = req.query.includeUploads === "1" || req.query.includeUploads === "true";
         const schemas = schemaRegistry.getAll();
-        const payload: { version: number; exportedAt: string; schemas: ContentTypeSchema[]; content?: Record<string, unknown[]> } = {
+        const payload: {
+          version: number;
+          exportedAt: string;
+          schemas: ContentTypeSchema[];
+          content?: Record<string, unknown[]>;
+          uploads?: unknown[];
+          stats?: { schemas: number; contentEntries: number; uploads: number };
+        } = {
           version: 1,
           exportedAt: new Date().toISOString(),
           schemas,
         };
+        let contentEntryCount = 0;
         if (includeContent) {
           const content: Record<string, unknown[]> = {};
           const collectionTypes = schemaRegistry.getCollectionTypes();
@@ -246,23 +264,62 @@ export function createAdminRouter(
             const pageSize = 500;
             let hasMore = true;
             while (hasMore) {
-              const result = await db.findMany(schema.collectionName, { pagination: { page, pageSize } });
-              rows.push(...(result.data || []));
-              hasMore = (result.data?.length ?? 0) === pageSize;
-              page++;
+              try {
+                const result = await db.findMany(schema.collectionName, { pagination: { page, pageSize } });
+                rows.push(...(result.data || []));
+                hasMore = (result.data?.length ?? 0) === pageSize;
+                page++;
+              } catch {
+                // Table may not exist yet (freshly-registered schema); skip it.
+                hasMore = false;
+              }
             }
             content[schema.collectionName] = rows;
+            contentEntryCount += rows.length;
           }
           for (const schema of singleTypes) {
             try {
               const result = await db.findMany(schema.collectionName, { pagination: { page: 1, pageSize: 1 } });
-              content[schema.collectionName] = result.data?.length ? (result.data as unknown[]) : [];
+              const rows = result.data?.length ? (result.data as unknown[]) : [];
+              content[schema.collectionName] = rows;
+              contentEntryCount += rows.length;
             } catch {
               content[schema.collectionName] = [];
             }
           }
           payload.content = content;
         }
+        let uploadCount = 0;
+        if (includeUploads) {
+          // Media table metadata only — actual files stay on disk / cloud
+          // provider. Restoring on a fresh server still resolves URLs as long
+          // as the files are present at the same paths.
+          try {
+            if (await db.tableExists("enterprise_media")) {
+              const rows: unknown[] = [];
+              let page = 1;
+              const pageSize = 500;
+              let hasMore = true;
+              while (hasMore) {
+                const result = await db.findMany("enterprise_media", { pagination: { page, pageSize } });
+                rows.push(...(result.data || []));
+                hasMore = (result.data?.length ?? 0) === pageSize;
+                page++;
+              }
+              payload.uploads = rows;
+              uploadCount = rows.length;
+            } else {
+              payload.uploads = [];
+            }
+          } catch {
+            payload.uploads = [];
+          }
+        }
+        payload.stats = {
+          schemas: schemas.length,
+          contentEntries: contentEntryCount,
+          uploads: uploadCount,
+        };
         res.setHeader("Content-Disposition", `attachment; filename="enterprise-export-${Date.now()}.json"`);
         res.json(payload);
       } catch (err) {
@@ -296,6 +353,7 @@ export function createAdminRouter(
           await ensureTableForSchema(db, schema);
           if (getProjectRoot) syncSchemaToFile(schema, getProjectRoot());
         }
+        let contentRestored = 0;
         if (body.content && typeof body.content === "object") {
           for (const [collectionName, entries] of Object.entries(body.content)) {
             if (!Array.isArray(entries) || !schemaRegistry.getAll().some((s) => s.collectionName === collectionName)) continue;
@@ -304,18 +362,245 @@ export function createAdminRouter(
               const { id: _id, ...rest } = doc;
               try {
                 await db.create(collectionName, rest as Record<string, unknown>);
+                contentRestored++;
               } catch (e) {
                 // Skip duplicate or invalid rows
               }
             }
           }
         }
-        res.json({ message: "Import completed", schemasRestored: body.schemas.length });
+        // Restore media table rows when present. Files themselves aren't
+        // copied — we assume the user moves /uploads alongside the JSON.
+        let uploadsRestored = 0;
+        const uploads = (body as { uploads?: unknown[] }).uploads;
+        if (Array.isArray(uploads) && (await db.tableExists("enterprise_media"))) {
+          for (const entry of uploads) {
+            const doc = entry as Record<string, unknown>;
+            const { id: _id, ...rest } = doc;
+            try {
+              await db.create("enterprise_media", rest);
+              uploadsRestored++;
+            } catch {
+              /* duplicate hash or schema mismatch — skip */
+            }
+          }
+        }
+        res.json({
+          message: "Import completed",
+          schemasRestored: body.schemas.length,
+          contentRestored,
+          uploadsRestored,
+        });
       } catch (err) {
         next(err);
       }
     },
   );
+
+  // ---- Scheduled backup (Settings > Data Backup toggle + interval) ----
+  // Config schema: { enabled, frequency: "hourly"|"daily"|"weekly"|"cron",
+  //                  cron?: "<5-field>", includeContent, includeUploads,
+  //                  retention?: number (keep last N files) }
+  // Persisted in core_store under key admin::backup-schedule; the cron job
+  // wiring lives in EnterpriseServer.applyBackupSchedule() so it can attach
+  // to the live CronManager.
+  const BACKUP_STORE_KEY = "admin::backup-schedule";
+
+  router.get("/backup-schedule", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const row = await db.findOneBy(STORE_TABLE, { key: BACKUP_STORE_KEY });
+      const value = (row as { value?: string } | null)?.value;
+      let parsed: Record<string, unknown> = {
+        enabled: false,
+        frequency: "daily",
+        includeContent: true,
+        includeUploads: false,
+        retention: 7,
+      };
+      if (typeof value === "string" && (value.startsWith("{") || value.startsWith("["))) {
+        try {
+          parsed = { ...parsed, ...JSON.parse(value) };
+        } catch {
+          /* fall through */
+        }
+      }
+      res.json({ data: parsed });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/backup-schedule", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const valueStr = JSON.stringify(req.body ?? {});
+      const row = await db.findOneBy(STORE_TABLE, { key: BACKUP_STORE_KEY });
+      if (row) {
+        await db.update(STORE_TABLE, (row as { id: number }).id, { value: valueStr });
+      } else {
+        await db.create(STORE_TABLE, {
+          key: BACKUP_STORE_KEY,
+          value: valueStr,
+          type: null,
+          environment: null,
+        });
+      }
+      // Notify the live server so it can register/unregister the cron job.
+      try {
+        await options?.applyBackupSchedule?.();
+      } catch (err) {
+        console.warn("[admin] applyBackupSchedule failed:", err);
+      }
+      res.json({ data: { key: BACKUP_STORE_KEY } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Manual trigger — runs the same export pipeline as the scheduled job and
+  // returns the path the file was written to. Useful for "Run now" buttons
+  // in the admin without waiting for the cron tick.
+  router.post("/backup-now", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const filePath = await options?.runBackupNow?.();
+      if (!filePath) {
+        return res.status(503).json({
+          error: {
+            status: 503,
+            message: "Backup service not available in this server build",
+          },
+        });
+      }
+      res.json({ data: { filePath } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // List existing backup files so the UI can show "last 7 backups".
+  router.get("/backups", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const files = await options?.listBackups?.();
+      res.json({ data: files ?? [] });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- User-defined cron jobs (no-code builder, Phase 16.1) ----
+  // The admin UI lets the user write a cron entry (name, schedule, JS code)
+  // and the server compiles + registers it without a restart. See
+  // EnterpriseServer.applyUserCronJobs for the compile pipeline.
+  const USER_CRON_TABLE = "enterprise_user_cron_jobs";
+
+  router.get("/cron-jobs", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!(await db.tableExists(USER_CRON_TABLE))) {
+        return res.json({ data: [] });
+      }
+      const result = await db.findMany(USER_CRON_TABLE, {
+        pagination: { page: 1, pageSize: 500 },
+        sort: [{ field: "created_at", direction: "desc" }],
+      });
+      res.json({ data: result.data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/cron-jobs", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name, schedule, code, enabled = true, description } = req.body ?? {};
+      if (!name || !schedule || !code) {
+        return res.status(400).json({
+          error: { status: 400, message: "name, schedule, and code are required" },
+        });
+      }
+      // Reject names that collide with the user:: prefix space we own.
+      const safeName = String(name).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const existing = await db.findOneBy(USER_CRON_TABLE, { name: safeName });
+      if (existing) {
+        return res.status(409).json({
+          error: { status: 409, message: `Cron "${safeName}" already exists` },
+        });
+      }
+      // Compile-test before storing so bad code is rejected up front.
+      try {
+        new Function("app", "ctx", `return (async () => { ${code} })()`);
+      } catch (err) {
+        return res.status(400).json({
+          error: {
+            status: 400,
+            message: `Compile error: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        });
+      }
+      const row = await db.create(USER_CRON_TABLE, {
+        name: safeName,
+        schedule,
+        code,
+        enabled: !!enabled,
+        description: description ?? null,
+      });
+      try {
+        await reloadUserCronJobs?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserCronJobs failed:", err);
+      }
+      res.status(201).json({ data: row });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put("/cron-jobs/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      const { schedule, code, enabled, description, name } = req.body ?? {};
+      const patch: Record<string, unknown> = {};
+      if (schedule !== undefined) patch.schedule = schedule;
+      if (code !== undefined) {
+        try {
+          new Function("app", "ctx", `return (async () => { ${code} })()`);
+        } catch (err) {
+          return res.status(400).json({
+            error: {
+              status: 400,
+              message: `Compile error: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          });
+        }
+        patch.code = code;
+      }
+      if (enabled !== undefined) patch.enabled = !!enabled;
+      if (description !== undefined) patch.description = description;
+      if (name !== undefined) patch.name = String(name).replace(/[^a-zA-Z0-9_-]/g, "_");
+      await db.update(USER_CRON_TABLE, id, patch);
+      try {
+        await reloadUserCronJobs?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserCronJobs failed:", err);
+      }
+      const updated = await db.findOne(USER_CRON_TABLE, id);
+      res.json({ data: updated });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete("/cron-jobs/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      await db.delete(USER_CRON_TABLE, id);
+      try {
+        await reloadUserCronJobs?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserCronJobs failed:", err);
+      }
+      res.json({ data: { ok: true } });
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // ---- Users Management ----
 

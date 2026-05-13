@@ -367,6 +367,23 @@ export class EnterpriseServer {
       }
     }
 
+    // User-defined cron jobs created from the admin UI (no-code builder).
+    // Each row carries a schedule + a JS snippet that's compiled to a handler
+    // at register time (see applyUserCronJobs).
+    if (!(await this.db.tableExists("enterprise_user_cron_jobs"))) {
+      await this.db.createTable("enterprise_user_cron_jobs", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "schedule", type: "string", nullable: false },
+          { name: "code", type: "text", nullable: false },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "description", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_user_cron_jobs created");
+    }
+
     // Preview tokens (Strapi v5: short-lived tokens that grant public read of a draft entry)
     if (!(await this.db.tableExists("enterprise_preview_tokens"))) {
       await this.db.createTable("enterprise_preview_tokens", {
@@ -798,6 +815,10 @@ export class EnterpriseServer {
         getProjectRoot: () => projectRoot,
         getDiscoveredArtifacts: () => this.getDiscoveredArtifacts(),
         reloadPermissions: () => this.syncPermissionsFromDb(),
+        applyBackupSchedule: () => this.applyBackupSchedule(),
+        runBackupNow: () => this.runBackup(),
+        listBackups: () => this.listBackupFiles(),
+        reloadUserCronJobs: () => this.applyUserCronJobs(),
       }),
     );
 
@@ -884,6 +905,19 @@ export class EnterpriseServer {
       await this.pluginRegistry.runBootstrap();
     } catch (err) {
       console.error("[Enterprise] Plugin bootstrap() phase failed:", err);
+    }
+    // Register the scheduled backup cron if the admin enabled it. Must run
+    // before cronManager.start() so the job is in the manager when it starts.
+    try {
+      await this.applyBackupSchedule();
+    } catch (err) {
+      console.warn("[Enterprise] applyBackupSchedule failed:", err);
+    }
+    // Compile user-defined cron jobs from DB into the cron manager.
+    try {
+      await this.applyUserCronJobs();
+    } catch (err) {
+      console.warn("[Enterprise] applyUserCronJobs failed:", err);
     }
     // Start scheduled jobs once the server is about to come online.
     try {
@@ -993,6 +1027,231 @@ export class EnterpriseServer {
     }
   }
 
+  /**
+   * Compile and (re)register every enabled row in enterprise_user_cron_jobs.
+   * Called on boot and after the admin endpoints create / update / delete a
+   * row so the change applies without a server restart.
+   *
+   * Compiles the snippet with `new Function("app", "ctx", code)` so the
+   * handler can `await app.getDb.findMany(...)` etc. directly. Errors at
+   * compile or run time get logged but don't tear the server down — the
+   * admin UI can flag broken jobs separately.
+   */
+  async applyUserCronJobs(): Promise<void> {
+    // Drop every previously registered user-defined job first. Built-in
+    // jobs use the `enterprise::*` prefix, so a `user::` prefix filter is
+    // enough to find ours.
+    const previous = this.cronManager.list().filter((j) => j.name.startsWith("user::"));
+    for (const j of previous) {
+      try {
+        this.cronManager.remove(j.name);
+      } catch {
+        /* not registered */
+      }
+    }
+    if (!(await this.db.tableExists("enterprise_user_cron_jobs"))) return;
+    const rows = (
+      await this.db.findMany("enterprise_user_cron_jobs", { pagination: { page: 1, pageSize: 500 } })
+    ).data as { name: string; schedule: string; code: string; enabled?: boolean | number }[];
+    for (const row of rows) {
+      if (!row.enabled) continue;
+      try {
+        const compiled = new Function("app", "ctx", `return (async () => { ${row.code} })()`) as (
+          app: unknown,
+          ctx: { now: Date; logger: typeof console },
+        ) => Promise<unknown>;
+        this.cronManager.add({
+          name: `user::${row.name}`,
+          schedule: row.schedule,
+          enabled: true,
+          handler: async () => {
+            try {
+              await compiled(this, { now: new Date(), logger: console });
+            } catch (err) {
+              console.warn(`[Enterprise] User cron "${row.name}" threw:`, err);
+            }
+          },
+        });
+      } catch (err) {
+        console.warn(`[Enterprise] User cron "${row.name}" failed to compile:`, err);
+      }
+    }
+  }
+
+  /**
+   * Re-evaluate the admin::backup-schedule config and (re)register the cron
+   * job that runs scheduled backups. Called by EnterpriseServer.start() at
+   * boot and by the admin endpoint after the user saves a new schedule.
+   */
+  async applyBackupSchedule(): Promise<void> {
+    const row = await this.db
+      .findOneBy("enterprise_core_store_settings", { key: "admin::backup-schedule" })
+      .catch(() => null);
+    let cfg: { enabled?: boolean; frequency?: string; cron?: string; includeContent?: boolean; includeUploads?: boolean } = {};
+    const value = (row as { value?: string } | null)?.value;
+    if (typeof value === "string") {
+      try {
+        cfg = JSON.parse(value);
+      } catch {
+        /* ignore malformed config */
+      }
+    }
+    // Always tear down any previous job so a disable flips it off.
+    try {
+      this.cronManager.remove("enterprise::backup");
+    } catch {
+      /* not registered yet */
+    }
+    if (!cfg.enabled) return;
+    const schedule = scheduleForFrequency(cfg.frequency, cfg.cron);
+    if (!schedule) return;
+    this.cronManager.add({
+      name: "enterprise::backup",
+      schedule,
+      enabled: true,
+      handler: async () => {
+        try {
+          const path = await this.runBackup({
+            includeContent: cfg.includeContent ?? true,
+            includeUploads: cfg.includeUploads ?? false,
+          });
+          if (path) console.log(`[Enterprise] Scheduled backup written: ${path}`);
+        } catch (err) {
+          console.warn("[Enterprise] Scheduled backup failed:", err);
+        }
+      },
+    });
+  }
+
+  /**
+   * Run the export pipeline now and write the JSON to `backups/` next to the
+   * app root. Returns the path written, or null when the writer fails (e.g.
+   * read-only filesystem).
+   */
+  async runBackup(
+    opts: { includeContent?: boolean; includeUploads?: boolean } = {},
+  ): Promise<string | null> {
+    const includeContent = opts.includeContent ?? true;
+    const includeUploads = opts.includeUploads ?? false;
+    const payload: {
+      version: number;
+      exportedAt: string;
+      schemas: unknown[];
+      content?: Record<string, unknown[]>;
+      uploads?: unknown[];
+    } = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      schemas: this.schemaRegistry.getAll(),
+    };
+    if (includeContent) {
+      const content: Record<string, unknown[]> = {};
+      for (const schema of this.schemaRegistry.getCollectionTypes()) {
+        try {
+          const result = await this.db.findMany(schema.collectionName, { pagination: { page: 1, pageSize: 5000 } });
+          content[schema.collectionName] = (result.data ?? []) as unknown[];
+        } catch {
+          content[schema.collectionName] = [];
+        }
+      }
+      for (const schema of this.schemaRegistry.getSingleTypes()) {
+        try {
+          const result = await this.db.findMany(schema.collectionName, { pagination: { page: 1, pageSize: 1 } });
+          content[schema.collectionName] = (result.data ?? []) as unknown[];
+        } catch {
+          content[schema.collectionName] = [];
+        }
+      }
+      payload.content = content;
+    }
+    if (includeUploads && (await this.db.tableExists("enterprise_media"))) {
+      try {
+        const result = await this.db.findMany("enterprise_media", { pagination: { page: 1, pageSize: 10000 } });
+        payload.uploads = (result.data ?? []) as unknown[];
+      } catch {
+        payload.uploads = [];
+      }
+    }
+
+    const projectRoot = this.config.appPath ?? process.cwd();
+    const backupsDir = path.join(projectRoot, "backups");
+    try {
+      await fs.promises.mkdir(backupsDir, { recursive: true });
+    } catch (err) {
+      console.warn("[Enterprise] Could not create backups directory:", err);
+      return null;
+    }
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const filePath = path.join(backupsDir, `backup-${ts}.json`);
+    try {
+      await fs.promises.writeFile(filePath, JSON.stringify(payload), "utf8");
+    } catch (err) {
+      console.warn("[Enterprise] Backup write failed:", err);
+      return null;
+    }
+    // Retention: keep only the most recent N files (default 7) based on the
+    // current store config.
+    try {
+      await this.pruneOldBackups();
+    } catch {
+      /* best-effort cleanup */
+    }
+    return filePath;
+  }
+
+  /**
+   * List backup files under <projectRoot>/backups/ with size + mtime so the
+   * admin UI can render a history.
+   */
+  async listBackupFiles(): Promise<{ name: string; size: number; createdAt: string }[]> {
+    const projectRoot = this.config.appPath ?? process.cwd();
+    const backupsDir = path.join(projectRoot, "backups");
+    try {
+      const files = await fs.promises.readdir(backupsDir);
+      const out: { name: string; size: number; createdAt: string }[] = [];
+      for (const name of files) {
+        if (!name.endsWith(".json")) continue;
+        try {
+          const stat = await fs.promises.stat(path.join(backupsDir, name));
+          out.push({ name, size: stat.size, createdAt: stat.mtime.toISOString() });
+        } catch {
+          /* skip unreadable */
+        }
+      }
+      // Most recent first.
+      return out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    } catch {
+      return [];
+    }
+  }
+
+  private async pruneOldBackups(): Promise<void> {
+    const row = await this.db
+      .findOneBy("enterprise_core_store_settings", { key: "admin::backup-schedule" })
+      .catch(() => null);
+    let retention = 7;
+    const value = (row as { value?: string } | null)?.value;
+    if (typeof value === "string") {
+      try {
+        const cfg = JSON.parse(value);
+        if (typeof cfg.retention === "number" && cfg.retention > 0) retention = cfg.retention;
+      } catch {
+        /* ignore */
+      }
+    }
+    const files = await this.listBackupFiles();
+    const overflow = files.slice(retention);
+    const projectRoot = this.config.appPath ?? process.cwd();
+    const backupsDir = path.join(projectRoot, "backups");
+    for (const f of overflow) {
+      try {
+        await fs.promises.unlink(path.join(backupsDir, f.name));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   /** Diagnostics for admin UI: discovered plugins/middlewares/cron/services. */
   getDiscoveredArtifacts(): {
     plugins: { registered: string[]; disabled: string[] };
@@ -1010,6 +1269,25 @@ export class EnterpriseServer {
       })),
       services: this.discoveredServices,
     };
+  }
+}
+
+/**
+ * Map a friendly frequency string to a 5-field cron expression. `"cron"`
+ * lets the user supply their own raw expression (e.g. `"15 3 * * 1"`).
+ */
+function scheduleForFrequency(frequency?: string, raw?: string): string | null {
+  switch (frequency) {
+    case "hourly":
+      return "0 * * * *";
+    case "daily":
+      return "0 3 * * *"; // 3am UTC by convention
+    case "weekly":
+      return "0 3 * * 0"; // Sunday 3am
+    case "cron":
+      return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+    default:
+      return null;
   }
 }
 

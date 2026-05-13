@@ -6,6 +6,7 @@ import { runInTransaction } from "@enterprise/database";
 import type { LifecycleManager } from "@enterprise/core";
 import { ensureTableForSchema } from "../loadSchemasFromDb";
 import { requirePermission } from "../middlewares/auth";
+import { populateRows } from "./populate";
 
 const DOCUMENT_ID_LENGTH = 24;
 function looksLikeDocumentId(id: string): boolean {
@@ -366,6 +367,16 @@ export function createContentTypeRouter(
               .map(ensureDocumentId)
               .map((row) => stripPrivateFields(row, attrs));
 
+            // Hydrate media / relation IDs when the client asked for populate.
+            // Done after stripPrivateFields so private fields stay private even
+            // on the populated object.
+            await populateRows(
+              dataWithDocumentId as Record<string, unknown>[],
+              schema,
+              { db, schemaRegistry },
+              Array.isArray(params.populate) ? params.populate : undefined,
+            );
+
             const out = { data: dataWithDocumentId, meta: result.meta };
             const afterCtx = await lifecycleManager.run("afterFindMany", {
               model: uid,
@@ -462,6 +473,21 @@ export function createContentTypeRouter(
                 .json({ error: { status: 404, message: "Not found" } });
             const attrs = (schema.attributes || {}) as Record<string, FieldConfig>;
             const withDocId = stripPrivateFields(ensureDocumentId(item), attrs);
+
+            // Populate single-item response when client asked for it. Default
+            // to populate=* on the editor flow (single-entry fetches) so the
+            // entry editor always has full media / relation objects to render.
+            const populateParam = parseQueryParams(req.query as Record<string, unknown>).populate;
+            const populateSpec = Array.isArray(populateParam) && populateParam.length > 0
+              ? populateParam
+              : ["*"];
+            await populateRows(
+              [withDocId as Record<string, unknown>],
+              schema,
+              { db, schemaRegistry },
+              populateSpec,
+            );
+
             const afterCtx = await lifecycleManager.run("afterFindOne", {
               model: uid,
               action: "afterFindOne",
