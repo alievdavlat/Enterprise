@@ -14,6 +14,12 @@ export interface AuthTemplateProps {
   error: string;
   onSubmit: (e: React.FormEvent) => void;
   brandName?: string;
+  /**
+   * Rendered below the credentials form — used for social-login buttons,
+   * forgot-password links, and any other auxiliary actions. Each template
+   * is responsible for placing it inside its own card.
+   */
+  footer?: import("react").ReactNode;
 }
 
 export interface AuthTemplateMeta {

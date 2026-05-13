@@ -258,6 +258,17 @@ program
         );
         break;
       }
+      case "provider": {
+        // Scaffold a custom OAuth-like auth provider so the user can extend
+        // the built-in preset list. Drops a file under src/providers/<name>.ts.
+        const file = path.join(cwd, "src", "providers", `${safeName}.ts`);
+        ts(
+          file,
+          `import type { OAuthProviderPreset } from "@enterprise/backend-express";\n\nconst ${safeName.replace(/[-_](.)/g, (_, c) => c.toUpperCase())}Provider: OAuthProviderPreset = {\n  name: "${safeName}",\n  displayName: "${safeName}",\n  authorizeUrl: "https://example.com/oauth2/authorize",\n  tokenUrl: "https://example.com/oauth2/token",\n  userInfoUrl: "https://example.com/api/userinfo",\n  defaultScope: "openid email profile",\n  userInfoAuthStrategy: "bearer",\n  normaliseUser: (raw) => ({\n    id: String(raw.id ?? raw.sub ?? ""),\n    email: typeof raw.email === "string" ? raw.email : undefined,\n    name: typeof raw.name === "string" ? raw.name : undefined,\n    raw,\n  }),\n};\n\nexport default ${safeName.replace(/[-_](.)/g, (_, c) => c.toUpperCase())}Provider;\n`,
+        );
+        console.log(chalk.yellow("Register this preset via a plugin's register() hook to expose it in Settings → Auth providers."));
+        break;
+      }
       case "component": {
         // safeName form: "<category>.<name>" (e.g. shared.hero). Falls back to
         // "shared.<name>" when only one segment is supplied so users don't have
@@ -283,7 +294,7 @@ program
       }
       default:
         console.error(
-          chalk.red(`Unknown generator "${kind}". Use one of: plugin | middleware | api | service | lifecycles | cron | component`),
+          chalk.red(`Unknown generator "${kind}". Use one of: plugin | middleware | api | service | lifecycles | cron | component | provider`),
         );
         process.exit(1);
     }

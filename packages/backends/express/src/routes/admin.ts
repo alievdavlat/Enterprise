@@ -866,6 +866,67 @@ export function createAdminRouter(
     res.json({ data: pm ? pm.listConditions() : [] });
   });
 
+  // ---- OAuth / Social auth providers (Phase 19) ----
+  const AUTH_PROVIDERS_TABLE = "enterprise_auth_providers";
+
+  router.get("/auth-providers", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { listOAuthPresets } = await import("./oauth-providers");
+      if (!(await db.tableExists(AUTH_PROVIDERS_TABLE))) {
+        return res.json({ data: { presets: listOAuthPresets(), configured: [] } });
+      }
+      const rows = (
+        await db.findMany(AUTH_PROVIDERS_TABLE, { pagination: { page: 1, pageSize: 100 } })
+      ).data;
+      // Strip clientSecret from the list response so it can't leak through
+      // the admin UI logs / network panel. The per-id GET (below) returns it
+      // when the admin actually needs to edit.
+      const safe = (rows as Array<{ clientSecret?: string | null }>).map((r) => ({
+        ...r,
+        clientSecret: r.clientSecret ? "" : null,
+      }));
+      res.json({ data: { presets: listOAuthPresets(), configured: safe } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put("/auth-providers/:name", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { getOAuthPreset } = await import("./oauth-providers");
+      const name = String(req.params.name).toLowerCase();
+      if (!getOAuthPreset(name)) {
+        return res.status(404).json({ error: { status: 404, message: "Unknown provider preset" } });
+      }
+      const { enabled, clientId, clientSecret, scope, redirectUri, allowedRedirects } = req.body ?? {};
+      const existing = (await db.findOneBy(AUTH_PROVIDERS_TABLE, { name })) as
+        | { id: number; clientSecret?: string | null }
+        | null;
+      const payload: Record<string, unknown> = {
+        name,
+        enabled: !!enabled,
+        clientId: clientId ?? null,
+        // Empty string from the UI means "leave existing secret alone" — only
+        // overwrite when the admin types a new value.
+        clientSecret: clientSecret === "" || clientSecret === undefined
+          ? existing?.clientSecret ?? null
+          : clientSecret,
+        scope: scope ?? null,
+        redirectUri: redirectUri ?? null,
+        allowedRedirects: allowedRedirects ?? null,
+      };
+      if (existing) {
+        await db.update(AUTH_PROVIDERS_TABLE, existing.id, payload);
+      } else {
+        await db.create(AUTH_PROVIDERS_TABLE, payload);
+      }
+      const row = await db.findOneBy(AUTH_PROVIDERS_TABLE, { name });
+      res.json({ data: row });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // ---- Users Management ----
 
   /**

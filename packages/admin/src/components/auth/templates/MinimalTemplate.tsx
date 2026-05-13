@@ -27,6 +27,7 @@ export function MinimalTemplate({
   error,
   onSubmit,
   brandName = "Enterprise CMS",
+  footer: _footer,
 }: AuthTemplateProps) {
   const isRegister = mode === "register";
 

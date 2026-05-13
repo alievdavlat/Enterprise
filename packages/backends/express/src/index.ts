@@ -4,6 +4,12 @@ import type { EnterpriseConfig } from "@enterprise/types";
 
 export { EnterpriseServer } from "./server";
 export type { EnterpriseConfig } from "@enterprise/types";
+export {
+  getOAuthPreset,
+  listOAuthPresets,
+  type OAuthProviderPreset,
+  type OAuthUserInfo,
+} from "./routes/oauth-providers";
 
 const config: EnterpriseConfig = {
   appName: process.env.APP_NAME || "Enterprise CMS",

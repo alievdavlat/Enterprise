@@ -37,6 +37,7 @@ import { loadCronFromPath } from "./loaders/loadCronFromPath";
 import { loadServicesFromPath } from "./loaders/loadServicesFromPath";
 import { loadLifecyclesFromPath } from "./loaders/loadLifecyclesFromPath";
 import { createAuthRouter } from "./routes/auth";
+import { createOAuthRouter } from "./routes/oauth";
 import { createContentTypeRouter } from "./routes/content-types";
 import { createMediaRouter } from "./routes/media";
 import { createWebhookRouter } from "./routes/webhooks";
@@ -376,6 +377,25 @@ export class EnterpriseServer {
       } catch {
         /* best-effort migration */
       }
+    }
+
+    // OAuth providers (Phase 19). One row per IdP (github, discord, google,
+    // etc.) with the admin-supplied client_id / client_secret. Generic flow
+    // router reads this table at request time so toggles take effect live.
+    if (!(await this.db.tableExists("enterprise_auth_providers"))) {
+      await this.db.createTable("enterprise_auth_providers", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "clientId", type: "string", nullable: true },
+          { name: "clientSecret", type: "string", nullable: true },
+          { name: "scope", type: "string", nullable: true },
+          { name: "redirectUri", type: "string", nullable: true },
+          { name: "allowedRedirects", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_auth_providers created");
     }
 
     // User-defined middlewares created from the admin UI (no-code builder).
@@ -814,6 +834,9 @@ export class EnterpriseServer {
 
     // Auth routes
     this.app.use(`${apiPrefix}/auth`, createAuthRouter(this.db));
+    // OAuth / social providers (Phase 19) — public namespace so unauth'd
+    // clients can hit /api/auth/oauth/:provider/redirect.
+    this.app.use(`${apiPrefix}/auth/oauth`, createOAuthRouter(this.db));
 
     // Public UI configuration (read-only, used by /login & /register before authentication)
     // Whitelist of safe-to-read store keys.

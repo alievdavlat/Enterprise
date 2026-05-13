@@ -25,6 +25,7 @@ export function NexusTemplate({
   error,
   onSubmit,
   brandName = "Enterprise CMS",
+  footer,
 }: AuthTemplateProps) {
   const isRegister = mode === "register";
 
@@ -159,6 +160,8 @@ export function NexusTemplate({
               {loading ? "Working…" : "Continue"}
             </Button>
           </form>
+
+          {footer}
 
           <p className="text-sm text-center text-zinc-400">
             {isRegister ? (
