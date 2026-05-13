@@ -43,6 +43,11 @@ export function createAdminRouter(
     reloadUserMiddlewares?: () => Promise<void> | void;
     /** Rebuild the user-defined routes after CRUD on enterprise_user_routes. */
     reloadUserRoutes?: () => Promise<void> | void;
+    /** Rebuild user services / lifecycles / extensions / plugins after CRUD. */
+    reloadUserServices?: () => Promise<void> | void;
+    reloadUserLifecycles?: () => Promise<void> | void;
+    reloadUserExtensions?: () => Promise<void> | void;
+    reloadUserPlugins?: () => Promise<void> | void;
     /** Live PermissionManager — exposed for the /actions and /conditions endpoints. */
     permissionManager?: import("@enterprise/core").PermissionManager;
   },
@@ -54,6 +59,10 @@ export function createAdminRouter(
   const reloadUserCronJobs = options?.reloadUserCronJobs;
   const reloadUserMiddlewares = options?.reloadUserMiddlewares;
   const reloadUserRoutes = options?.reloadUserRoutes;
+  const reloadUserServices = options?.reloadUserServices;
+  const reloadUserLifecycles = options?.reloadUserLifecycles;
+  const reloadUserExtensions = options?.reloadUserExtensions;
+  const reloadUserPlugins = options?.reloadUserPlugins;
 
   // ---- System / Discovered artifacts ----
   router.get("/system", (_req: Request, res: Response) => {
@@ -845,6 +854,137 @@ export function createAdminRouter(
     }
   });
 
+  // ---- Generic builder CRUD helper (services / lifecycles / extensions / plugins) ----
+  // Each builder resource follows the same shape: name unique + code (or
+  // manifest) + enabled + description + per-resource extras. This helper
+  // mounts /admin/<routePath> with GET / POST / PUT / DELETE and runs a
+  // compile-test before persisting so bad snippets are rejected up front.
+  function mountBuilderCrud(opts: {
+    routePath: string;
+    table: string;
+    /** Extra fields to accept on POST/PUT beyond name/code/enabled/description. */
+    extraFields?: string[];
+    /** Try to compile the code with this signature; throws on syntax error. */
+    compile?: (code: string) => unknown;
+    /** Called after every successful CRUD to hot-reload the in-memory registry. */
+    reload?: () => Promise<void> | void;
+    /** Used in error messages. */
+    label: string;
+  }) {
+    const { routePath, table, extraFields = [], compile, reload, label } = opts;
+    type CruderResult = { ok: true; payload: Record<string, unknown> } | { ok: false; status: number; message: string };
+    const cruder = async (req: Request, body: Record<string, unknown>, isUpdate = false): Promise<CruderResult> => {
+      const payload: Record<string, unknown> = {};
+      if (typeof body.name === "string") payload.name = String(body.name).replace(/[^a-zA-Z0-9_.\-]/g, "_");
+      if (typeof body.description !== "undefined") payload.description = body.description ?? null;
+      if (typeof body.enabled !== "undefined") payload.enabled = !!body.enabled;
+      if (typeof body.code === "string") {
+        if (compile) {
+          try {
+            compile(body.code);
+          } catch (err) {
+            return { ok: false, status: 400, message: `Compile error: ${err instanceof Error ? err.message : String(err)}` };
+          }
+        }
+        payload.code = body.code;
+      }
+      for (const f of extraFields) {
+        if (typeof body[f] !== "undefined") payload[f] = body[f];
+      }
+      if (!isUpdate) {
+        if (!payload.name) return { ok: false, status: 400, message: "name is required" };
+        if (!payload.code && extraFields.indexOf("manifest") < 0) {
+          return { ok: false, status: 400, message: "code is required" };
+        }
+      }
+      return { ok: true, payload };
+    };
+
+    router.get(`/${routePath}`, async (_req: Request, res: Response, next: NextFunction) => {
+      try {
+        if (!(await db.tableExists(table))) return res.json({ data: [] });
+        const result = await db.findMany(table, {
+          pagination: { page: 1, pageSize: 500 },
+          sort: [{ field: "created_at", direction: "desc" }],
+        });
+        res.json({ data: result.data });
+      } catch (err) { next(err); }
+    });
+
+    router.post(`/${routePath}`, async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const built = await cruder(req, req.body ?? {});
+        if (!built.ok) return res.status(built.status).json({ error: { status: built.status, message: built.message } });
+        const existing = await db.findOneBy(table, { name: built.payload.name });
+        if (existing) {
+          return res.status(409).json({ error: { status: 409, message: `${label} "${built.payload.name}" already exists` } });
+        }
+        const row = await db.create(table, built.payload);
+        try { await reload?.(); } catch (err) { console.warn(`[admin] reload ${label} failed:`, err); }
+        res.status(201).json({ data: row });
+      } catch (err) { next(err); }
+    });
+
+    router.put(`/${routePath}/:id`, async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const id = paramId(req.params.id);
+        const built = await cruder(req, req.body ?? {}, true);
+        if (!built.ok) return res.status(built.status).json({ error: { status: built.status, message: built.message } });
+        await db.update(table, id, built.payload);
+        try { await reload?.(); } catch (err) { console.warn(`[admin] reload ${label} failed:`, err); }
+        const updated = await db.findOne(table, id);
+        res.json({ data: updated });
+      } catch (err) { next(err); }
+    });
+
+    router.delete(`/${routePath}/:id`, async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const id = paramId(req.params.id);
+        await db.delete(table, id);
+        try { await reload?.(); } catch (err) { console.warn(`[admin] reload ${label} failed:`, err); }
+        res.json({ data: { ok: true } });
+      } catch (err) { next(err); }
+    });
+  }
+
+  // Services (Phase 16.4) — code is wrapped in `async (app, args) => { ... }`.
+  mountBuilderCrud({
+    routePath: "user-services",
+    table: "enterprise_user_services",
+    compile: (code) => new Function("app", "args", `return (async () => { ${code} })()`),
+    reload: reloadUserServices,
+    label: "Service",
+  });
+
+  // Lifecycles (Phase 16.5) — model + event extras; code receives ctx.
+  mountBuilderCrud({
+    routePath: "user-lifecycles",
+    table: "enterprise_user_lifecycles",
+    extraFields: ["model", "event"],
+    compile: (code) => new Function("ctx", `return (async () => { ${code} })()`),
+    reload: reloadUserLifecycles,
+    label: "Lifecycle",
+  });
+
+  // Extensions (Phase 16.8) — target + phase extras; code receives ctx.
+  mountBuilderCrud({
+    routePath: "user-extensions",
+    table: "enterprise_user_extensions",
+    extraFields: ["target", "phase"],
+    compile: (code) => new Function("ctx", `return (async () => { ${code} })()`),
+    reload: reloadUserExtensions,
+    label: "Extension",
+  });
+
+  // Plugins (Phase 16.6) — manifest JSON instead of code; bundle of names.
+  mountBuilderCrud({
+    routePath: "user-plugins",
+    table: "enterprise_user_plugins",
+    extraFields: ["version", "manifest"],
+    reload: reloadUserPlugins,
+    label: "Plugin",
+  });
+
   // ---- ACL: actions + conditions catalog (Phase 17) ----
   // Used by the admin Roles editor to render the full matrix — built-in
   // Strapi verbs, bulk variants, plugin-registered custom actions, and
@@ -895,10 +1035,14 @@ export function createAdminRouter(
     try {
       const { getOAuthPreset } = await import("./oauth-providers");
       const name = String(req.params.name).toLowerCase();
-      if (!getOAuthPreset(name)) {
-        return res.status(404).json({ error: { status: 404, message: "Unknown provider preset" } });
+      const { enabled, clientId, clientSecret, scope, redirectUri, allowedRedirects, isCustom, customConfig } = req.body ?? {};
+      // Allow saving a row when (a) it's a known preset, OR (b) the caller
+      // marked it as custom and supplied a config shape. Strapi exposes only
+      // the curated list; we let admins ship a new IdP without redeploy.
+      const preset = getOAuthPreset(name);
+      if (!preset && !isCustom) {
+        return res.status(404).json({ error: { status: 404, message: "Unknown provider preset; pass isCustom=true with customConfig to register a new one" } });
       }
-      const { enabled, clientId, clientSecret, scope, redirectUri, allowedRedirects } = req.body ?? {};
       const existing = (await db.findOneBy(AUTH_PROVIDERS_TABLE, { name })) as
         | { id: number; clientSecret?: string | null }
         | null;
@@ -914,6 +1058,8 @@ export function createAdminRouter(
         scope: scope ?? null,
         redirectUri: redirectUri ?? null,
         allowedRedirects: allowedRedirects ?? null,
+        isCustom: !!isCustom,
+        customConfig: customConfig ? (typeof customConfig === "string" ? customConfig : JSON.stringify(customConfig)) : null,
       };
       if (existing) {
         await db.update(AUTH_PROVIDERS_TABLE, existing.id, payload);

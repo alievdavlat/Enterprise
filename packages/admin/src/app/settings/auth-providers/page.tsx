@@ -15,8 +15,15 @@ import {
   Switch,
   Badge,
   Separator,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Textarea,
 } from "@enterprise/design-system";
-import { KeyRound, Github, ExternalLink } from "lucide-react";
+import { KeyRound, Github, ExternalLink, Plus } from "lucide-react";
 
 interface Preset {
   name: string;
@@ -33,6 +40,8 @@ interface Configured {
   scope?: string | null;
   redirectUri?: string | null;
   allowedRedirects?: string | null;
+  isCustom?: boolean | number | null;
+  customConfig?: string | null;
 }
 
 /**
@@ -43,6 +52,7 @@ export default function AuthProvidersPage() {
   const [presets, setPresets] = useState<Preset[]>([]);
   const [configured, setConfigured] = useState<Record<string, Configured>>({});
   const [loading, setLoading] = useState(true);
+  const [customDialogOpen, setCustomDialogOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -63,35 +73,190 @@ export default function AuthProvidersPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Custom rows are those whose `name` doesn't match a preset — admins can
+  // mix arbitrary OAuth 2.0 IdPs alongside the seven built-in ones.
+  const presetNames = new Set(presets.map((p) => p.name));
+  const customRows = Object.values(configured).filter((r) => !presetNames.has(r.name) && r.isCustom);
+
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center gap-3">
-        <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
-          <KeyRound className="w-6 h-6 text-primary" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
+            <KeyRound className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Auth providers</h1>
+            <p className="text-muted-foreground mt-1">
+              Enable social sign-in for your admin + API. Each provider talks standard OAuth 2.0.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Auth providers</h1>
-          <p className="text-muted-foreground mt-1">
-            Enable social sign-in for your admin + API. Each provider talks standard OAuth 2.0.
-          </p>
-        </div>
+        <Button onClick={() => setCustomDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" /> Add custom provider
+        </Button>
       </div>
 
       {loading ? (
         <div className="text-muted-foreground p-8 text-center">Loading…</div>
       ) : (
-        <div className="grid gap-4">
-          {presets.map((p) => (
-            <ProviderCard
-              key={p.name}
-              preset={p}
-              row={configured[p.name]}
-              onSaved={load}
-            />
-          ))}
+        <div className="space-y-6">
+          {customRows.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                Custom providers
+              </h2>
+              <div className="grid gap-4">
+                {customRows.map((row) => (
+                  <ProviderCard
+                    key={row.name}
+                    preset={{ name: row.name, displayName: row.name, defaultScope: row.scope ?? "" }}
+                    row={row}
+                    onSaved={load}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="space-y-2">
+            {customRows.length > 0 && (
+              <h2 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                Built-in presets
+              </h2>
+            )}
+            <div className="grid gap-4">
+              {presets.map((p) => (
+                <ProviderCard
+                  key={p.name}
+                  preset={p}
+                  row={configured[p.name]}
+                  onSaved={load}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
+
+      <CustomProviderDialog
+        open={customDialogOpen}
+        onOpenChange={setCustomDialogOpen}
+        onSaved={() => { setCustomDialogOpen(false); load(); }}
+      />
     </div>
+  );
+}
+
+/**
+ * Add a brand-new OAuth provider not in the seven built-in presets — e.g.
+ * a private enterprise SSO or a small social network we haven't shipped a
+ * preset for. The admin supplies the authorize / token / user-info URLs +
+ * a field-mapping object that tells the server how to pull id / email /
+ * name out of the user-info response.
+ */
+function CustomProviderDialog({
+  open, onOpenChange, onSaved,
+}: { open: boolean; onOpenChange: (v: boolean) => void; onSaved: () => void }) {
+  const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [authorizeUrl, setAuthorizeUrl] = useState("");
+  const [tokenUrl, setTokenUrl] = useState("");
+  const [userInfoUrl, setUserInfoUrl] = useState("");
+  const [defaultScope, setDefaultScope] = useState("openid email profile");
+  const [userMapping, setUserMapping] = useState('{\n  "id": "id",\n  "email": "email",\n  "name": "name",\n  "username": "username",\n  "avatar": "avatar_url"\n}');
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!name.trim() || !authorizeUrl || !tokenUrl || !userInfoUrl) {
+      toast.error("Name, authorize URL, token URL, and user-info URL are required");
+      return;
+    }
+    let mapping: Record<string, string> = {};
+    try { mapping = JSON.parse(userMapping); }
+    catch { toast.error("User mapping must be valid JSON"); return; }
+    setSaving(true);
+    try {
+      await api.put(`/admin/auth-providers/${name.toLowerCase()}`, {
+        enabled: false,
+        clientId,
+        clientSecret,
+        scope: defaultScope,
+        isCustom: true,
+        customConfig: {
+          displayName: displayName || name,
+          authorizeUrl,
+          tokenUrl,
+          userInfoUrl,
+          defaultScope,
+          userMapping: mapping,
+        },
+      });
+      toast.success("Custom provider added — toggle it on from the list");
+      onSaved();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg ?? "Save failed");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Add custom OAuth provider</DialogTitle>
+          <DialogDescription>
+            Wire up any OAuth 2.0 IdP — give it a name, the three IdP URLs, and a field mapping for the user-info response.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Name (slug)</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value.replace(/[^a-z0-9_-]/gi, "").toLowerCase())} placeholder="acme-sso" />
+          </div>
+          <div className="space-y-2">
+            <Label>Display name</Label>
+            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Acme SSO" />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Authorize URL</Label>
+            <Input value={authorizeUrl} onChange={(e) => setAuthorizeUrl(e.target.value)} placeholder="https://idp.example.com/oauth2/authorize" className="font-mono text-xs" />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Token URL</Label>
+            <Input value={tokenUrl} onChange={(e) => setTokenUrl(e.target.value)} placeholder="https://idp.example.com/oauth2/token" className="font-mono text-xs" />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>User-info URL</Label>
+            <Input value={userInfoUrl} onChange={(e) => setUserInfoUrl(e.target.value)} placeholder="https://idp.example.com/userinfo" className="font-mono text-xs" />
+          </div>
+          <div className="space-y-2">
+            <Label>Default scope</Label>
+            <Input value={defaultScope} onChange={(e) => setDefaultScope(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Client ID</Label>
+            <Input value={clientId} onChange={(e) => setClientId(e.target.value)} />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Client secret</Label>
+            <Input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>User-info field mapping (JSON)</Label>
+            <Textarea value={userMapping} onChange={(e) => setUserMapping(e.target.value)} rows={7} className="font-mono text-xs" />
+            <p className="text-xs text-muted-foreground">
+              Maps our canonical fields (id, email, name, username, avatar) to the keys in your IdP's user-info response.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Add provider"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

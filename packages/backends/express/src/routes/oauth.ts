@@ -2,7 +2,13 @@ import { Router, Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import type { DatabaseAdapter } from "@enterprise/database";
-import { getOAuthPreset, listOAuthPresets, type OAuthUserInfo } from "./oauth-providers";
+import {
+  getOAuthPreset,
+  listOAuthPresets,
+  buildCustomPreset,
+  type OAuthUserInfo,
+  type OAuthProviderPreset,
+} from "./oauth-providers";
 
 const PROVIDERS_TABLE = "enterprise_auth_providers";
 const USERS_TABLE = "enterprise_users";
@@ -19,6 +25,23 @@ interface ProviderRow {
   redirectUri?: string | null;
   /** Comma-separated allowed redirect destinations after callback. */
   allowedRedirects?: string | null;
+  isCustom?: boolean | number | null;
+  customConfig?: string | null;
+}
+
+/**
+ * Resolve a preset for a provider name, checking custom DB rows first so the
+ * admin's "Add custom provider" UI can override or extend the built-in list.
+ */
+async function resolvePreset(
+  db: DatabaseAdapter,
+  name: string,
+): Promise<{ preset: OAuthProviderPreset | undefined; row: ProviderRow | null }> {
+  const row = (await db.findOneBy(PROVIDERS_TABLE, { name })) as ProviderRow | null;
+  if (row?.isCustom && row.customConfig) {
+    return { preset: buildCustomPreset(name, row.customConfig), row };
+  }
+  return { preset: getOAuthPreset(name), row };
 }
 
 /**
@@ -177,7 +200,9 @@ export function createOAuthRouter(db: DatabaseAdapter): Router {
       const enabled = rows.filter((r) => r.enabled);
       const out = enabled
         .map((r) => {
-          const preset = getOAuthPreset(r.name);
+          const preset = r.isCustom && r.customConfig
+            ? buildCustomPreset(r.name, r.customConfig)
+            : getOAuthPreset(r.name);
           if (!preset) return null;
           return {
             name: preset.name,
@@ -197,9 +222,8 @@ export function createOAuthRouter(db: DatabaseAdapter): Router {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const name = String(req.params.provider).toLowerCase();
-        const preset = getOAuthPreset(name);
+        const { preset, row } = await resolvePreset(db, name);
         if (!preset) return res.status(404).json({ error: { status: 404, message: "Unknown provider" } });
-        const row = (await db.findOneBy(PROVIDERS_TABLE, { name })) as ProviderRow | null;
         if (!row?.enabled || !row.clientId || !row.clientSecret) {
           return res.status(503).json({
             error: { status: 503, message: `Provider "${name}" is not enabled or not configured` },
@@ -233,14 +257,13 @@ export function createOAuthRouter(db: DatabaseAdapter): Router {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const name = String(req.params.provider).toLowerCase();
-        const preset = getOAuthPreset(name);
+        const { preset, row } = await resolvePreset(db, name);
         if (!preset) return res.status(404).json({ error: { status: 404, message: "Unknown provider" } });
         const code = req.query.code as string | undefined;
         const stateParam = (req.query.state as string | undefined) ?? "";
         if (!code) {
           return res.status(400).json({ error: { status: 400, message: "code missing" } });
         }
-        const row = (await db.findOneBy(PROVIDERS_TABLE, { name })) as ProviderRow | null;
         if (!row?.enabled || !row.clientId || !row.clientSecret) {
           return res.status(503).json({
             error: { status: 503, message: `Provider "${name}" is not enabled` },

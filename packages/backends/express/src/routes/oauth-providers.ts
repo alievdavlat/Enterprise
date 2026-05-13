@@ -174,3 +174,50 @@ export function getOAuthPreset(name: string): OAuthProviderPreset | undefined {
 export function listOAuthPresets(): OAuthProviderPreset[] {
   return [...presets];
 }
+
+/**
+ * Build a preset from a DB row when isCustom = true. The customConfig JSON
+ * carries authorizeUrl / tokenUrl / userInfoUrl / displayName / defaultScope
+ * + an optional `userMapping` object that tells us which raw fields map to
+ * id / email / name / avatar (no code eval — pure data shape).
+ */
+export function buildCustomPreset(
+  name: string,
+  customConfig: string | Record<string, unknown> | null,
+): OAuthProviderPreset | undefined {
+  if (!customConfig) return undefined;
+  let cfg: Record<string, unknown>;
+  if (typeof customConfig === "string") {
+    try { cfg = JSON.parse(customConfig); }
+    catch { return undefined; }
+  } else {
+    cfg = customConfig;
+  }
+  const required = ["authorizeUrl", "tokenUrl", "userInfoUrl"] as const;
+  for (const k of required) {
+    if (typeof cfg[k] !== "string") return undefined;
+  }
+  const mapping = (cfg.userMapping as Record<string, string> | undefined) ?? {};
+  const idKey = mapping.id ?? "id";
+  const emailKey = mapping.email ?? "email";
+  const nameKey = mapping.name ?? "name";
+  const avatarKey = mapping.avatar ?? "avatar_url";
+  const usernameKey = mapping.username ?? "username";
+  return {
+    name: name.toLowerCase(),
+    displayName: (cfg.displayName as string) || name,
+    authorizeUrl: cfg.authorizeUrl as string,
+    tokenUrl: cfg.tokenUrl as string,
+    userInfoUrl: cfg.userInfoUrl as string,
+    defaultScope: (cfg.defaultScope as string) || "openid email profile",
+    userInfoAuthStrategy: cfg.userInfoAuthStrategy === "queryToken" ? "queryToken" : "bearer",
+    normaliseUser: (raw) => ({
+      id: String(raw[idKey] ?? ""),
+      email: typeof raw[emailKey] === "string" ? (raw[emailKey] as string) : undefined,
+      name: typeof raw[nameKey] === "string" ? (raw[nameKey] as string) : undefined,
+      username: typeof raw[usernameKey] === "string" ? (raw[usernameKey] as string) : undefined,
+      avatar: typeof raw[avatarKey] === "string" ? (raw[avatarKey] as string) : undefined,
+      raw,
+    }),
+  };
+}

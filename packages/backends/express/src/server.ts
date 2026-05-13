@@ -63,6 +63,12 @@ export class EnterpriseServer {
   private userMiddlewareHandlers: { name: string; handler: import("express").RequestHandler }[] = [];
   /** Compiled DB-stored middleware list, swapped wholesale on save. */
   private userDbMiddlewares: { name: string; fn: (req: Request, res: Response, next: NextFunction) => unknown | Promise<unknown> }[] = [];
+  /** Compiled user-defined services, callable via app.userService(name). */
+  private userDbServices: Map<string, (...args: unknown[]) => unknown> = new Map();
+  /** Compiled user-defined extensions, keyed by `<target>:<phase>` so plugins can resolve them. */
+  private userDbExtensions: Map<string, { name: string; fn: (...args: unknown[]) => unknown }[]> = new Map();
+  /** Track user-registered lifecycle handlers so applyUserLifecycles can detach them on reload. */
+  private userDbLifecycleHandlers: { event: string; handler: (ctx: unknown) => Promise<unknown> | unknown }[] = [];
   /** Compiled DB-stored route list, scanned per-request by dispatcher. */
   private userDbRoutes: {
     name: string;
@@ -392,10 +398,23 @@ export class EnterpriseServer {
           { name: "scope", type: "string", nullable: true },
           { name: "redirectUri", type: "string", nullable: true },
           { name: "allowedRedirects", type: "text", nullable: true },
+          // Custom OAuth providers — when set, the row is its own preset
+          // instead of pointing at a built-in preset. Holds authorizeUrl /
+          // tokenUrl / userInfoUrl / displayName / normaliser code.
+          { name: "isCustom", type: "boolean", nullable: true },
+          { name: "customConfig", type: "text", nullable: true },
         ],
         timestamps: true,
       });
       console.log("[Enterprise] Table enterprise_auth_providers created");
+    } else if (typeof (this.db as { addColumnIfNotExists?: unknown }).addColumnIfNotExists === "function") {
+      const addCol = (this.db as { addColumnIfNotExists: (t: string, c: string, type: string, opts?: { nullable?: boolean }) => Promise<void> }).addColumnIfNotExists;
+      try {
+        await addCol("enterprise_auth_providers", "isCustom", "boolean", { nullable: true });
+        await addCol("enterprise_auth_providers", "customConfig", "text", { nullable: true });
+      } catch {
+        /* best-effort migration */
+      }
     }
 
     // User-defined middlewares created from the admin UI (no-code builder).
@@ -431,6 +450,73 @@ export class EnterpriseServer {
         timestamps: true,
       });
       console.log("[Enterprise] Table enterprise_user_routes created");
+    }
+
+    // User-defined services (Phase 16.4). Compiled function reachable via
+    // `app.userService(name)` from any route / lifecycle / cron.
+    if (!(await this.db.tableExists("enterprise_user_services"))) {
+      await this.db.createTable("enterprise_user_services", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "code", type: "text", nullable: false },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "description", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_user_services created");
+    }
+
+    // User-defined lifecycle hooks (Phase 16.5). Wired into LifecycleManager
+    // so beforeCreate/afterUpdate/etc fire for content-type CRUD.
+    if (!(await this.db.tableExists("enterprise_user_lifecycles"))) {
+      await this.db.createTable("enterprise_user_lifecycles", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "model", type: "string", nullable: false },
+          { name: "event", type: "string", nullable: false },
+          { name: "code", type: "text", nullable: false },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "description", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_user_lifecycles created");
+    }
+
+    // User-defined plugin bundles (Phase 16.6). A row references existing
+    // services/routes/middlewares/lifecycles by name to group them as one
+    // shippable unit. Toggle disabled → all bundled items also disable.
+    if (!(await this.db.tableExists("enterprise_user_plugins"))) {
+      await this.db.createTable("enterprise_user_plugins", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "version", type: "string", nullable: true },
+          { name: "description", type: "text", nullable: true },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "manifest", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_user_plugins created");
+    }
+
+    // User-defined extensions (Phase 16.8). Pre/post hooks that wrap a
+    // built-in plugin action (e.g. upload.afterUpload to push to S3 mirror,
+    // email.beforeSend to add a footer). Built-in plugins read this table.
+    if (!(await this.db.tableExists("enterprise_user_extensions"))) {
+      await this.db.createTable("enterprise_user_extensions", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "target", type: "string", nullable: false },
+          { name: "phase", type: "string", nullable: false },
+          { name: "code", type: "text", nullable: false },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "description", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_user_extensions created");
     }
 
     // User-defined cron jobs created from the admin UI (no-code builder).
@@ -907,6 +993,10 @@ export class EnterpriseServer {
         reloadUserCronJobs: () => this.applyUserCronJobs(),
         reloadUserMiddlewares: () => this.applyUserMiddlewares(),
         reloadUserRoutes: () => this.applyUserRoutes(),
+        reloadUserServices: () => this.applyUserServices(),
+        reloadUserLifecycles: () => this.applyUserLifecycles(),
+        reloadUserExtensions: () => this.applyUserExtensions(),
+        reloadUserPlugins: () => this.applyUserPlugins(),
         permissionManager: this.permissionManager,
       }),
     );
@@ -1025,6 +1115,26 @@ export class EnterpriseServer {
       await this.applyUserRoutes();
     } catch (err) {
       console.warn("[Enterprise] applyUserRoutes failed:", err);
+    }
+    try {
+      await this.applyUserServices();
+    } catch (err) {
+      console.warn("[Enterprise] applyUserServices failed:", err);
+    }
+    try {
+      await this.applyUserLifecycles();
+    } catch (err) {
+      console.warn("[Enterprise] applyUserLifecycles failed:", err);
+    }
+    try {
+      await this.applyUserExtensions();
+    } catch (err) {
+      console.warn("[Enterprise] applyUserExtensions failed:", err);
+    }
+    try {
+      await this.applyUserPlugins();
+    } catch (err) {
+      console.warn("[Enterprise] applyUserPlugins failed:", err);
     }
     // Start scheduled jobs once the server is about to come online.
     try {
@@ -1159,6 +1269,179 @@ export class EnterpriseServer {
     } catch {
       return {};
     }
+  }
+
+  /**
+   * Compile every enabled row in enterprise_user_services. Each service
+   * becomes a function callable from any route / lifecycle / cron via
+   * `app.userService("name")(args...)`. Plain async function; no Express
+   * coupling.
+   */
+  async applyUserServices(): Promise<void> {
+    this.userDbServices.clear();
+    if (!(await this.db.tableExists("enterprise_user_services"))) return;
+    const rows = (
+      await this.db.findMany("enterprise_user_services", { pagination: { page: 1, pageSize: 500 } })
+    ).data as { name: string; code: string; enabled?: boolean | number }[];
+    for (const row of rows) {
+      if (!row.enabled) continue;
+      try {
+        const fn = new Function(
+          "app",
+          "args",
+          `return (async () => { ${row.code} })()`,
+        ) as (app: unknown, args: unknown) => Promise<unknown>;
+        this.userDbServices.set(row.name, ((...args: unknown[]) => fn(this, args)) as never);
+      } catch (err) {
+        console.warn(`[Enterprise] User service "${row.name}" failed to compile:`, err);
+      }
+    }
+  }
+
+  /** Programmatic access — `app.userService("blog.recommendations")()`. */
+  userService(name: string): ((...args: unknown[]) => unknown) | undefined {
+    return this.userDbServices.get(name);
+  }
+
+  /**
+   * Compile lifecycle hooks from enterprise_user_lifecycles and register them
+   * on LifecycleManager. Each row binds a (model uid, event) pair to a code
+   * snippet that runs with ctx in scope.
+   */
+  async applyUserLifecycles(): Promise<void> {
+    // Detach previously registered handlers so we don't double-fire after
+    // a reload. LifecycleManager has no clear-by-tag, so we track refs.
+    for (const h of this.userDbLifecycleHandlers) {
+      try {
+        this.lifecycleManager.off(h.event as never, h.handler as never);
+      } catch {
+        /* ignore */
+      }
+    }
+    this.userDbLifecycleHandlers = [];
+    if (!(await this.db.tableExists("enterprise_user_lifecycles"))) return;
+    const rows = (
+      await this.db.findMany("enterprise_user_lifecycles", { pagination: { page: 1, pageSize: 500 } })
+    ).data as {
+      name: string;
+      model: string;
+      event: string;
+      code: string;
+      enabled?: boolean | number;
+    }[];
+    for (const row of rows) {
+      if (!row.enabled) continue;
+      try {
+        const fn = new Function(
+          "ctx",
+          `return (async () => { ${row.code} })()`,
+        ) as (ctx: unknown) => Promise<unknown>;
+        const handler = async (ctx: unknown) => {
+          const typed = ctx as { model?: string };
+          if (typed.model && typed.model !== row.model) return;
+          try {
+            await fn(ctx);
+          } catch (err) {
+            console.warn(`[Enterprise] User lifecycle "${row.name}" threw:`, err);
+          }
+        };
+        this.lifecycleManager.on(row.event as never, handler as never);
+        this.userDbLifecycleHandlers.push({ event: row.event, handler });
+      } catch (err) {
+        console.warn(`[Enterprise] User lifecycle "${row.name}" failed to compile:`, err);
+      }
+    }
+  }
+
+  /**
+   * Compile DB extensions. Each row binds `<target>:<phase>` (e.g.
+   * `upload.afterUpload:after`) to a function. Built-in plugins look up
+   * extensions via `app.userExtensions("upload.afterUpload")` and run them
+   * in registration order.
+   */
+  async applyUserExtensions(): Promise<void> {
+    this.userDbExtensions.clear();
+    if (!(await this.db.tableExists("enterprise_user_extensions"))) return;
+    const rows = (
+      await this.db.findMany("enterprise_user_extensions", { pagination: { page: 1, pageSize: 500 } })
+    ).data as {
+      name: string;
+      target: string;
+      phase: string;
+      code: string;
+      enabled?: boolean | number;
+    }[];
+    for (const row of rows) {
+      if (!row.enabled) continue;
+      try {
+        const fn = new Function(
+          "ctx",
+          `return (async () => { ${row.code} })()`,
+        ) as (ctx: unknown) => Promise<unknown>;
+        const key = `${row.target}:${row.phase}`;
+        const list = this.userDbExtensions.get(key) ?? [];
+        list.push({ name: row.name, fn });
+        this.userDbExtensions.set(key, list);
+      } catch (err) {
+        console.warn(`[Enterprise] User extension "${row.name}" failed to compile:`, err);
+      }
+    }
+  }
+
+  /** Built-in plugins look up extensions via this getter. */
+  userExtensions(targetPhase: string): { name: string; fn: (ctx: unknown) => Promise<unknown> }[] {
+    return (this.userDbExtensions.get(targetPhase) ?? []) as never;
+  }
+
+  /**
+   * "Plugins" here are bundles of named services/routes/middlewares/
+   * lifecycles. Disabling a plugin disables the underlying rows by name.
+   * Reapply propagates the toggle.
+   */
+  async applyUserPlugins(): Promise<void> {
+    if (!(await this.db.tableExists("enterprise_user_plugins"))) return;
+    const rows = (
+      await this.db.findMany("enterprise_user_plugins", { pagination: { page: 1, pageSize: 500 } })
+    ).data as {
+      name: string;
+      enabled?: boolean | number;
+      manifest?: string | Record<string, unknown>;
+    }[];
+    for (const plugin of rows) {
+      const enabled = !!plugin.enabled;
+      let manifest: { services?: string[]; routes?: string[]; middlewares?: string[]; lifecycles?: string[] } = {};
+      if (typeof plugin.manifest === "string") {
+        try {
+          manifest = JSON.parse(plugin.manifest);
+        } catch {
+          /* malformed manifest — skip */
+        }
+      } else if (plugin.manifest && typeof plugin.manifest === "object") {
+        manifest = plugin.manifest as never;
+      }
+      const updates: { table: string; names?: string[] }[] = [
+        { table: "enterprise_user_services", names: manifest.services },
+        { table: "enterprise_user_routes", names: manifest.routes },
+        { table: "enterprise_user_middlewares", names: manifest.middlewares },
+        { table: "enterprise_user_lifecycles", names: manifest.lifecycles },
+      ];
+      for (const { table, names } of updates) {
+        if (!names?.length) continue;
+        for (const name of names) {
+          try {
+            const row = (await this.db.findOneBy(table, { name })) as { id?: number } | null;
+            if (row?.id) await this.db.update(table, row.id, { enabled });
+          } catch {
+            /* row may not exist — skip */
+          }
+        }
+      }
+    }
+    // Re-apply downstream registries so the cascade is live.
+    await this.applyUserServices();
+    await this.applyUserRoutes();
+    await this.applyUserMiddlewares();
+    await this.applyUserLifecycles();
   }
 
   /**

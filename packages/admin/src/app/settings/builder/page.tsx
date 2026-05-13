@@ -11,14 +11,18 @@ import {
   Wand2,
   Activity,
   Puzzle,
+  Boxes,
   Sparkles,
-  ArrowRight,
 } from "lucide-react";
 import { RoutesPanel } from "@/components/builder/RoutesPanel";
 import { MiddlewaresPanel } from "@/components/builder/MiddlewaresPanel";
 import { CronPanel } from "@/components/builder/CronPanel";
+import { ServicesPanel } from "@/components/builder/ServicesPanel";
+import { LifecyclesPanel } from "@/components/builder/LifecyclesPanel";
+import { ExtensionsPanel } from "@/components/builder/ExtensionsPanel";
+import { PluginsPanel } from "@/components/builder/PluginsPanel";
 
-type TabId = "routes" | "middlewares" | "cron" | "services" | "lifecycles" | "plugins";
+type TabId = "routes" | "middlewares" | "cron" | "services" | "lifecycles" | "extensions" | "plugins";
 
 interface TabDef {
   id: TabId;
@@ -33,9 +37,10 @@ const TABS: TabDef[] = [
   { id: "routes", label: "Routes", icon: Network, hint: "Custom REST endpoints", available: true },
   { id: "middlewares", label: "Middlewares", icon: Layers, hint: "Request pipeline", available: true },
   { id: "cron", label: "Cron jobs", icon: Clock, hint: "Scheduled tasks", available: true },
-  { id: "services", label: "Services", icon: Wand2, hint: "Reusable business logic", available: false, phase: "16.4" },
-  { id: "lifecycles", label: "Lifecycles", icon: Activity, hint: "Entity hooks", available: false, phase: "16.5" },
-  { id: "plugins", label: "Plugins", icon: Puzzle, hint: "Bundled extensions", available: false, phase: "16.6" },
+  { id: "services", label: "Services", icon: Wand2, hint: "Reusable business logic", available: true },
+  { id: "lifecycles", label: "Lifecycles", icon: Activity, hint: "Entity hooks", available: true },
+  { id: "extensions", label: "Extensions", icon: Puzzle, hint: "Hook into built-in plugins", available: true },
+  { id: "plugins", label: "Plugins", icon: Boxes, hint: "Bundle the above as a plugin", available: true },
 ];
 
 /**
@@ -68,7 +73,7 @@ function BuilderInner() {
   const activeDef = TABS.find((t) => t.id === active);
 
   return (
-    <div className="p-6 md:p-8 space-y-6 animate-in fade-in duration-300 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 space-y-6 animate-in fade-in duration-300 w-full">
       {/* Header */}
       <header className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-4">
@@ -99,7 +104,7 @@ function BuilderInner() {
 
       {/* Tabs */}
       <Tabs value={active} onValueChange={(v) => setActive(v as TabId)} className="space-y-6">
-        <TabsList className="h-auto p-1.5 bg-muted/40 backdrop-blur w-full justify-start gap-1 flex-wrap rounded-xl border border-border/50">
+        <TabsList className="h-auto p-1.5 bg-muted/40 backdrop-blur w-full justify-start gap-1 flex-wrap rounded-xl border border-border/50 overflow-x-auto">
           {TABS.map(({ id, label, icon: Icon, available, phase, hint }) => (
             <TabsTrigger
               key={id}
@@ -127,9 +132,10 @@ function BuilderInner() {
         <TabsContent value="routes" className="m-0 outline-none"><RoutesPanel /></TabsContent>
         <TabsContent value="middlewares" className="m-0 outline-none"><MiddlewaresPanel /></TabsContent>
         <TabsContent value="cron" className="m-0 outline-none"><CronPanel /></TabsContent>
-        <TabsContent value="services" className="m-0 outline-none"><ComingSoon def={TABS[3]} /></TabsContent>
-        <TabsContent value="lifecycles" className="m-0 outline-none"><ComingSoon def={TABS[4]} /></TabsContent>
-        <TabsContent value="plugins" className="m-0 outline-none"><ComingSoon def={TABS[5]} /></TabsContent>
+        <TabsContent value="services" className="m-0 outline-none"><ServicesPanel /></TabsContent>
+        <TabsContent value="lifecycles" className="m-0 outline-none"><LifecyclesPanel /></TabsContent>
+        <TabsContent value="extensions" className="m-0 outline-none"><ExtensionsPanel /></TabsContent>
+        <TabsContent value="plugins" className="m-0 outline-none"><PluginsPanel /></TabsContent>
       </Tabs>
     </div>
   );

@@ -39,7 +39,21 @@ type Permission = {
 };
 type Schema = { uid: string; displayName: string };
 
-const ACTIONS = ["find", "read", "create", "update", "delete"] as const;
+// Strapi-style verbs + the bulk + draft-and-publish variants we ship in
+// Phase 17. The roles matrix lets admins toggle each verb per content type.
+const ACTIONS = [
+  "find",
+  "findOne",
+  "count",
+  "create",
+  "update",
+  "delete",
+  "publish",
+  "unpublish",
+  "bulkCreate",
+  "bulkUpdate",
+  "bulkDelete",
+] as const;
 type Action = (typeof ACTIONS)[number];
 
 export default function RolesPage() {
