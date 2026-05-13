@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { SidebarProvider, SidebarInset } from "@enterprise/design-system";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
 
 const PUBLIC_PATHS = ["/login", "/register"];
@@ -27,6 +28,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </main>
             </SidebarInset>
           </div>
+          {/* Command palette is mounted globally so Cmd/Ctrl+K works from any
+              admin page — Linear / Stripe / Vercel style productivity. */}
+          <CommandPalette />
         </SidebarProvider>
       </OnboardingGuard>
     </div>

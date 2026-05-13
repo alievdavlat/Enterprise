@@ -38,7 +38,19 @@ export default function RootLayout({
                 <AdminLayout>{children}</AdminLayout>
               </QueryProvider>
             </AuthGuard>
-            <Toaster position="top-right" />
+            <Toaster
+              position="top-right"
+              richColors
+              closeButton
+              expand
+              toastOptions={{
+                classNames: {
+                  toast: "border-border/60 shadow-lg backdrop-blur",
+                  success: "!bg-emerald-50 dark:!bg-emerald-950/30",
+                  error: "!bg-red-50 dark:!bg-red-950/30",
+                },
+              }}
+            />
           </TooltipProvider>
         </ThemeProvider>
       </body>

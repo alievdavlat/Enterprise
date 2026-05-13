@@ -44,6 +44,8 @@ export function ContentManagerClient() {
   const [schemaLoading, setSchemaLoading] = useState(true);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [selectedRows, setSelectedRows] = useState<ContentRow[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const rawModel = Array.isArray(params.model) ? params.model[0] : params.model;
   const model = rawModel ? decodeURIComponent(rawModel) : "";
@@ -398,7 +400,54 @@ export function ContentManagerClient() {
         setPage={setPage}
         setFormData={setFormData}
         handleSave={handleSave}
+        onSelectionChange={setSelectedRows}
       />
+      {selectedRows.length > 0 && contentType && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 duration-200">
+          <div className="bg-foreground text-background rounded-full shadow-2xl flex items-center gap-4 pl-4 pr-2 py-2 backdrop-blur">
+            <span className="text-sm font-medium">
+              {selectedRows.length} selected
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-background hover:bg-background/20 hover:text-background h-8"
+              onClick={() => setSelectedRows([])}>
+              Clear
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="rounded-full h-8 px-4"
+              disabled={bulkDeleting}
+              onClick={async () => {
+                if (!confirm(`Delete ${selectedRows.length} entries? This cannot be undone.`)) return;
+                setBulkDeleting(true);
+                try {
+                  const ids = selectedRows
+                    .map((r) => (r as { documentId?: string; id?: number | string }).documentId
+                      ?? (r as { id?: number | string }).id)
+                    .filter(Boolean);
+                  await api.delete(`/${contentType.pluralName}/bulk`, { data: { ids } });
+                  toast.success(`Deleted ${ids.length} entries`);
+                  setSelectedRows([]);
+                  // Refetch list — fetchData closure is in scope above.
+                  setPage((p) => p);
+                } catch (e: unknown) {
+                  toast.error(
+                    (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
+                      ?? "Bulk delete failed",
+                  );
+                } finally {
+                  setBulkDeleting(false);
+                }
+              }}>
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              {bulkDeleting ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,8 @@ export interface ModelContentProps {
   setPage: (page: number | ((p: number) => number)) => void;
   setFormData: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
   handleSave: () => void | Promise<void>;
+  /** Bulk-select hook so the parent can render a delete toolbar. */
+  onSelectionChange?: (rows: Record<string, unknown>[]) => void;
 }
 
 export const ModelContent = ({
@@ -37,6 +39,7 @@ export const ModelContent = ({
   setPage,
   setFormData,
   handleSave,
+  onSelectionChange,
 }: ModelContentProps) => {
   return (
     <div className="flex-1 bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100">
@@ -60,6 +63,7 @@ export const ModelContent = ({
           onPageChange={(nextPage) => setPage(Math.max(1, nextPage || 1))}
           initialColumnVisibility={initialColumnVisibility}
           onColumnVisibilityChange={handleColumnVisibilityChange}
+          onSelectionChange={onSelectionChange}
         />
       ) : (
         <div className="p-8 w-full animate-in fade-in duration-500">

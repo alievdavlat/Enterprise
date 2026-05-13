@@ -50,6 +50,12 @@ interface DataTableProps<TData> {
   initialColumnVisibility?: VisibilityState;
   /** Called when user changes column visibility (for persistence) */
   onColumnVisibilityChange?: (visibility: VisibilityState) => void;
+  /**
+   * Fires whenever the row selection changes. Receives the underlying rows
+   * of the currently-selected items so the parent can render a bulk action
+   * toolbar without re-implementing the checkbox logic.
+   */
+  onSelectionChange?: (selected: TData[]) => void;
 }
 
 export function DataTable<TData>({
@@ -62,6 +68,7 @@ export function DataTable<TData>({
   onPageChange,
   initialColumnVisibility = {},
   onColumnVisibilityChange,
+  onSelectionChange,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] =
@@ -86,7 +93,12 @@ export function DataTable<TData>({
         return next;
       });
     },
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: (updater) => {
+      setRowSelection((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        return next;
+      });
+    },
     state: {
       sorting,
       columnFilters,
@@ -94,6 +106,16 @@ export function DataTable<TData>({
       rowSelection,
     },
   });
+
+  // Bubble up the selected rows whenever the in-memory map changes. We do
+  // this in an effect so consumers don't need to wire up tanstack-table's
+  // updater type directly.
+  React.useEffect(() => {
+    if (!onSelectionChange) return;
+    const rows = table.getSelectedRowModel().rows.map((r) => r.original);
+    onSelectionChange(rows);
+    // table reference is stable per render
+  }, [rowSelection, onSelectionChange, table]);
 
   const meta = paginationMeta ?? undefined;
 

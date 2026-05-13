@@ -985,6 +985,93 @@ export function createAdminRouter(
     label: "Plugin",
   });
 
+  // ---- Migrations runner (Phase 16.10) ----
+  // Surfaces the Phase 3 CLI MigrationRunner over HTTP so admins can list,
+  // apply and roll back migrations from the UI without an SSH session.
+  router.get("/migrations", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectRoot = getProjectRoot?.();
+      if (!projectRoot) {
+        return res.status(503).json({ error: { status: 503, message: "Migrations require a project root" } });
+      }
+      const { MigrationRunner } = await import("@enterprise/database");
+      const path = await import("path");
+      const runner = new MigrationRunner({
+        db: db as never,
+        migrationsDir: path.join(projectRoot, "database", "migrations"),
+      });
+      const status = await runner.status();
+      res.json({ data: status });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/migrations/up", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectRoot = getProjectRoot?.();
+      if (!projectRoot) {
+        return res.status(503).json({ error: { status: 503, message: "Migrations require a project root" } });
+      }
+      const { MigrationRunner } = await import("@enterprise/database");
+      const path = await import("path");
+      const runner = new MigrationRunner({
+        db: db as never,
+        migrationsDir: path.join(projectRoot, "database", "migrations"),
+      });
+      const applied = await runner.up();
+      res.json({ data: { applied } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/migrations/down", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectRoot = getProjectRoot?.();
+      if (!projectRoot) {
+        return res.status(503).json({ error: { status: 503, message: "Migrations require a project root" } });
+      }
+      const { MigrationRunner } = await import("@enterprise/database");
+      const path = await import("path");
+      const runner = new MigrationRunner({
+        db: db as never,
+        migrationsDir: path.join(projectRoot, "database", "migrations"),
+      });
+      const steps = Math.max(1, Number(req.body?.steps) || 1);
+      const rolled = await runner.down(steps);
+      res.json({ data: { rolled } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/migrations/create", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectRoot = getProjectRoot?.();
+      if (!projectRoot) {
+        return res.status(503).json({ error: { status: 503, message: "Migrations require a project root" } });
+      }
+      const name = String(req.body?.name ?? "").trim();
+      if (!name) {
+        return res.status(400).json({ error: { status: 400, message: "name is required" } });
+      }
+      const { buildMigrationFilename, migrationTemplate } = await import("@enterprise/database");
+      const path = await import("path");
+      const fs = await import("fs");
+      const dir = path.join(projectRoot, "database", "migrations");
+      await fs.promises.mkdir(dir, { recursive: true });
+      const file = path.join(dir, buildMigrationFilename(name));
+      if (fs.existsSync(file)) {
+        return res.status(409).json({ error: { status: 409, message: "File already exists" } });
+      }
+      await fs.promises.writeFile(file, migrationTemplate(), "utf8");
+      res.status(201).json({ data: { path: file } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // ---- ACL: actions + conditions catalog (Phase 17) ----
   // Used by the admin Roles editor to render the full matrix — built-in
   // Strapi verbs, bulk variants, plugin-registered custom actions, and
