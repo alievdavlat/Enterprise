@@ -78,6 +78,19 @@ async function hydrateField(
 ): Promise<void> {
   const ids = new Set<string | number>();
   for (const row of rows) {
+    // Defensive: a buggy adapter or an old row written before SQLite JSON
+    // rehydration could still leave a JSON-string here. Parse it back to
+    // the live value so collectId / resolveOne see the real shape.
+    if (typeof row[field] === "string") {
+      const s = row[field] as string;
+      if (s.startsWith("{") || s.startsWith("[")) {
+        try {
+          row[field] = JSON.parse(s);
+        } catch {
+          /* leave as string */
+        }
+      }
+    }
     const value = row[field];
     if (value == null) continue;
     if (Array.isArray(value)) {

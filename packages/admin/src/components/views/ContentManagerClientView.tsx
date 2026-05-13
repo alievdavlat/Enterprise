@@ -229,21 +229,42 @@ export function ContentManagerClient() {
             );
           }
           if (isMedia && value != null && value !== "") {
-            const items = Array.isArray(value) ? value : [value];
-            const withUrl = items.filter(
-              (v): v is Record<string, unknown> =>
-                typeof v === "object" &&
-                v !== null &&
-                "url" in v &&
-                typeof (v as { url?: string }).url === "string",
-            );
+            // Old-DB rows that bypassed Phase-29 rehydration still arrive as
+            // JSON strings. Parse defensively so the table renders thumbs
+            // even before the row is re-saved.
+            let materialised: unknown = value;
+            if (typeof materialised === "string") {
+              const s = materialised.trim();
+              if (s.startsWith("{") || s.startsWith("[")) {
+                try { materialised = JSON.parse(s); } catch { /* keep string */ }
+              }
+            }
+            const items = Array.isArray(materialised) ? materialised : [materialised];
+            // Prefer a thumbnail variant (Phase 7 responsive images) so the
+            // table doesn't ship the full-size original on every row.
+            const pickThumb = (item: unknown): string | null => {
+              if (typeof item !== "object" || item === null) return null;
+              const obj = item as Record<string, unknown>;
+              const formatsRaw = obj.formats;
+              let formats: Record<string, { url?: string }> | null = null;
+              if (typeof formatsRaw === "string") {
+                try { formats = JSON.parse(formatsRaw); } catch { /* */ }
+              } else if (formatsRaw && typeof formatsRaw === "object") {
+                formats = formatsRaw as Record<string, { url?: string }>;
+              }
+              const thumb = formats?.thumbnail?.url ?? formats?.small?.url;
+              return thumb ?? (typeof obj.url === "string" ? obj.url : null);
+            };
+            const withUrl = items
+              .map((v) => ({ item: v, url: pickThumb(v) }))
+              .filter((entry) => entry.url !== null);
             if (withUrl.length > 0) {
               return (
                 <div className="flex items-center gap-1 flex-wrap max-w-[200px]">
-                  {withUrl.slice(0, 3).map((item, i) => (
+                  {withUrl.slice(0, 3).map((entry, i) => (
                     <img
                       key={i}
-                      src={getImageUrl((item as { url: string }).url)}
+                      src={getImageUrl(entry.url as string)}
                       alt=""
                       className="w-8 h-8 rounded object-cover border border-border shrink-0"
                     />

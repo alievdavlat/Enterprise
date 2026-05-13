@@ -25,6 +25,36 @@ function toSqliteBindValue(value: unknown): string | number | bigint | Buffer | 
   return String(value);
 }
 
+/**
+ * Reverse of `toSqliteBindValue` — when the column holds JSON (component,
+ * media, relation, dynamic zone, schema-builder json field), the adapter
+ * stored a JSON-stringified blob. Parse it back here so route handlers and
+ * `populateRows` see the same shape they wrote.
+ *
+ * Cheap heuristic: only parse strings that start with `{` or `[`. Anything
+ * else passes through untouched so plain text columns aren't damaged.
+ */
+function rehydrateRow(row: Record<string, unknown> | undefined): Record<string, unknown> | null {
+  if (!row) return null;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(row)) {
+    out[key] = parseMaybeJson(row[key]);
+  }
+  return out;
+}
+
+function parseMaybeJson(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  if (value.length === 0) return value;
+  const first = value[0];
+  if (first !== "{" && first !== "[") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
 /** SQLite type mapping */
 function sqliteType(type: string, length?: number): string {
   const map: Record<string, string> = {
@@ -103,9 +133,10 @@ export class SqliteAdapter implements DatabaseAdapter {
     const countRow = db.prepare(countSql).get(...safeParams) as { total: number };
     const total = countRow?.total ?? 0;
     const pageCount = Math.ceil(total / pag.pageSize);
+    const hydrated = dataRows.map((r) => rehydrateRow(r)!) as Record<string, unknown>[];
 
     return {
-      data: dataRows,
+      data: hydrated,
       meta: {
         pagination: {
           page: pag.page,
@@ -124,7 +155,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     const row = this.getDb()
       .prepare(`SELECT * FROM "${collection}" WHERE id = ? LIMIT 1`)
       .get(id) as Record<string, unknown> | undefined;
-    return row ?? null;
+    return rehydrateRow(row);
   }
 
   async findOneBy(
@@ -135,7 +166,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     const row = this.getDb()
       .prepare(`SELECT * FROM "${collection}" WHERE ${toSqlitePlaceholders(sql)} LIMIT 1`)
       .get(...params) as Record<string, unknown> | undefined;
-    return row ?? null;
+    return rehydrateRow(row);
   }
 
   async create(
