@@ -206,19 +206,65 @@ export function Spark({ size = 16, ...rest }: Props) {
   );
 }
 
-/** Brand logo glyph — abstract layered hexagon. */
+/**
+ * Brand logo — abstract starship silhouette inspired by the NCC-1701
+ * profile (saucer + secondary hull + twin warp nacelles), simplified to a
+ * mark that reads at 16px and scales clean to 256px. Uses currentColor so
+ * the host can paint it any single colour; the inset accent line uses
+ * brand-violet for a hint of warmth without becoming gaudy.
+ */
 export function BrandGlyph({ size = 32, ...rest }: Props) {
   return (
-    <svg viewBox="0 0 32 32" width={size} height={size} fill="none" {...rest}>
-      <defs>
-        <linearGradient id="brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--brand-violet))" />
-          <stop offset="100%" stopColor="hsl(var(--brand-pink))" />
-        </linearGradient>
-      </defs>
-      <path d="M16 3 L27 9 L27 21 L16 27 L5 21 L5 9 Z" fill="url(#brand-grad)" />
-      <path d="M16 10 L22 13.5 L22 20.5 L16 24 L10 20.5 L10 13.5 Z" fill="hsl(var(--background))" opacity="0.95" />
-      <path d="M16 14 L19 15.7 L19 19.3 L16 21 L13 19.3 L13 15.7 Z" fill="url(#brand-grad)" />
+    <svg viewBox="0 0 64 64" width={size} height={size} fill="none" stroke="none" {...rest}>
+      {/* Saucer (top disc) */}
+      <ellipse cx="32" cy="24" rx="22" ry="6" fill="currentColor" />
+      {/* Saucer accent — slim under-ring */}
+      <ellipse cx="32" cy="26.5" rx="22" ry="1.5" fill="currentColor" opacity="0.55" />
+      {/* Connecting strut from saucer to engineering hull */}
+      <path d="M30 28 L31 36 L33 36 L34 28 Z" fill="currentColor" opacity="0.85" />
+      {/* Engineering hull (elongated capsule) */}
+      <rect x="22" y="36" width="20" height="6" rx="3" fill="currentColor" />
+      <circle cx="42" cy="39" r="2" fill="currentColor" opacity="0.7" />
+      {/* Nacelles — twin warp engines on outriggers */}
+      <path d="M10 30 L12 30 L18 38 L16 38 Z" fill="currentColor" opacity="0.80" />
+      <path d="M54 30 L52 30 L46 38 L48 38 Z" fill="currentColor" opacity="0.80" />
+      <rect x="6"  y="36" width="14" height="4" rx="2" fill="currentColor" />
+      <rect x="44" y="36" width="14" height="4" rx="2" fill="currentColor" />
+      {/* Bussard collectors (front of nacelles) — single brand accent */}
+      <circle cx="7"  cy="38" r="2" fill="hsl(var(--brand-violet))" />
+      <circle cx="57" cy="38" r="2" fill="hsl(var(--brand-violet))" />
+    </svg>
+  );
+}
+
+/**
+ * Brand wordmark — glyph + "Enterprise" label, horizontal. Drop into the
+ * sidebar header / login splash anywhere a one-line brand mark is needed.
+ */
+export function BrandWordmark({ size = 28, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 220 36" width={size * 6} height={size} fill="none" {...rest}>
+      <g transform="translate(0,2)">
+        {/* Use the same primitives as BrandGlyph at fixed coords. */}
+        <ellipse cx="16" cy="14" rx="13" ry="3.5" fill="currentColor" />
+        <ellipse cx="16" cy="16" rx="13" ry="1" fill="currentColor" opacity="0.55" />
+        <path d="M15 17 L15.6 23 L16.4 23 L17 17 Z" fill="currentColor" opacity="0.85" />
+        <rect x="9" y="22" width="14" height="4" rx="2" fill="currentColor" />
+        <rect x="2" y="22" width="9" height="2.5" rx="1.25" fill="currentColor" opacity="0.85" />
+        <rect x="21" y="22" width="9" height="2.5" rx="1.25" fill="currentColor" opacity="0.85" />
+        <circle cx="3"  cy="23.25" r="1.2" fill="hsl(var(--brand-violet))" />
+        <circle cx="29" cy="23.25" r="1.2" fill="hsl(var(--brand-violet))" />
+      </g>
+      <text
+        x="44"
+        y="24"
+        fontFamily="ui-sans-serif, system-ui"
+        fontSize="18"
+        fontWeight="600"
+        letterSpacing="-0.02em"
+        fill="currentColor">
+        Enterprise
+      </text>
     </svg>
   );
 }
