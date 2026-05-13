@@ -11,7 +11,8 @@ import {
   Wand2,
   Activity,
   Puzzle,
-  Lock,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { RoutesPanel } from "@/components/builder/RoutesPanel";
 import { MiddlewaresPanel } from "@/components/builder/MiddlewaresPanel";
@@ -19,25 +20,33 @@ import { CronPanel } from "@/components/builder/CronPanel";
 
 type TabId = "routes" | "middlewares" | "cron" | "services" | "lifecycles" | "plugins";
 
-const TABS: { id: TabId; label: string; icon: typeof Network; available: boolean; phase?: string }[] = [
-  { id: "routes", label: "Routes", icon: Network, available: true },
-  { id: "middlewares", label: "Middlewares", icon: Layers, available: true },
-  { id: "cron", label: "Cron jobs", icon: Clock, available: true },
-  { id: "services", label: "Services", icon: Wand2, available: false, phase: "Phase 16.4" },
-  { id: "lifecycles", label: "Lifecycles", icon: Activity, available: false, phase: "Phase 16.5" },
-  { id: "plugins", label: "Plugins", icon: Puzzle, available: false, phase: "Phase 16.6" },
+interface TabDef {
+  id: TabId;
+  label: string;
+  icon: typeof Network;
+  hint: string;
+  available: boolean;
+  phase?: string;
+}
+
+const TABS: TabDef[] = [
+  { id: "routes", label: "Routes", icon: Network, hint: "Custom REST endpoints", available: true },
+  { id: "middlewares", label: "Middlewares", icon: Layers, hint: "Request pipeline", available: true },
+  { id: "cron", label: "Cron jobs", icon: Clock, hint: "Scheduled tasks", available: true },
+  { id: "services", label: "Services", icon: Wand2, hint: "Reusable business logic", available: false, phase: "16.4" },
+  { id: "lifecycles", label: "Lifecycles", icon: Activity, hint: "Entity hooks", available: false, phase: "16.5" },
+  { id: "plugins", label: "Plugins", icon: Puzzle, hint: "Bundled extensions", available: false, phase: "16.6" },
 ];
 
 /**
- * Unified no-code backend builder. One page, one set of tabs — author
- * routes / middlewares / cron / (soon) services / lifecycles / plugins
- * without leaving the browser. Each tab's URL is reflected in the query
- * string so deep links work and the existing standalone pages can redirect
- * here.
+ * Unified no-code backend builder. One page, tabbed nav — author routes /
+ * middlewares / cron / (soon) services / lifecycles / plugins without
+ * leaving the browser. Selected tab is mirrored in `?tab=...` so reload,
+ * back / forward and deep links keep their place.
  */
 export default function BuilderPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-muted-foreground">Loading…</div>}>
+    <Suspense fallback={<BuilderSkeleton />}>
       <BuilderInner />
     </Suspense>
   );
@@ -49,44 +58,65 @@ function BuilderInner() {
   const initial = (search.get("tab") as TabId | null) ?? "routes";
   const [active, setActive] = useState<TabId>(initial);
 
-  // Keep `?tab=...` in sync so reload + back/forward keep the right panel.
   useEffect(() => {
     const current = search.get("tab");
     if (current !== active) {
-      const url = `/settings/builder?tab=${active}`;
-      router.replace(url, { scroll: false });
+      router.replace(`/settings/builder?tab=${active}`, { scroll: false });
     }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center gap-3">
-        <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
-          <Wrench className="w-6 h-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold">Code Builder</h1>
-          <p className="text-muted-foreground mt-1">
-            Build your backend from the UI — routes, middlewares, scheduled tasks and more.
-            No code editor, no restart.
-          </p>
-        </div>
-      </div>
+  const activeDef = TABS.find((t) => t.id === active);
 
-      <Tabs value={active} onValueChange={(v) => setActive(v as TabId)} className="space-y-4">
-        <TabsList className="grid grid-cols-3 sm:grid-cols-6 h-auto p-1 gap-1">
-          {TABS.map(({ id, label, icon: Icon, available, phase }) => (
+  return (
+    <div className="p-6 md:p-8 space-y-6 animate-in fade-in duration-300 max-w-7xl mx-auto">
+      {/* Header */}
+      <header className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-4">
+          <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-3 rounded-2xl border border-primary/20 shadow-sm">
+            <Wrench className="w-7 h-7 text-primary" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">Code Builder</h1>
+              <Sparkles className="w-5 h-5 text-primary/70" />
+            </div>
+            <p className="text-muted-foreground mt-1.5 max-w-xl text-sm leading-relaxed">
+              Build your backend from the UI — routes, middlewares, scheduled tasks and more.
+              No code editor, no restart.
+            </p>
+          </div>
+        </div>
+        {activeDef && (
+          <div className="hidden md:flex flex-col items-end text-right">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">Now editing</span>
+            <span className="font-semibold flex items-center gap-2">
+              <activeDef.icon className="w-4 h-4" />
+              {activeDef.label}
+            </span>
+          </div>
+        )}
+      </header>
+
+      {/* Tabs */}
+      <Tabs value={active} onValueChange={(v) => setActive(v as TabId)} className="space-y-6">
+        <TabsList className="h-auto p-1.5 bg-muted/40 backdrop-blur w-full justify-start gap-1 flex-wrap rounded-xl border border-border/50">
+          {TABS.map(({ id, label, icon: Icon, available, phase, hint }) => (
             <TabsTrigger
               key={id}
               value={id}
-              className="flex flex-col h-auto py-2 gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary disabled:opacity-50"
               disabled={!available}
-              title={!available && phase ? `Coming in ${phase}` : undefined}>
-              <Icon className="w-4 h-4" />
-              <span className="text-xs">{label}</span>
+              title={available ? hint : `Coming in Phase ${phase}`}
+              className={[
+                "group relative flex items-center gap-2 h-10 px-4 rounded-lg",
+                "text-sm font-medium transition-all",
+                "data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-foreground",
+                "data-[state=inactive]:text-muted-foreground hover:text-foreground hover:bg-background/60",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+              ].join(" ")}>
+              <Icon className="w-4 h-4 shrink-0" />
+              <span>{label}</span>
               {!available && (
-                <Badge variant="outline" className="text-[9px] py-0 h-4 mt-0.5">
-                  <Lock className="w-2.5 h-2.5 mr-1" />
+                <Badge variant="outline" className="text-[9px] h-4 px-1.5 ml-0.5 border-amber-400/40 bg-amber-400/10 text-amber-500 dark:text-amber-300">
                   Soon
                 </Badge>
               )}
@@ -94,26 +124,51 @@ function BuilderInner() {
           ))}
         </TabsList>
 
-        <TabsContent value="routes" className="m-0"><RoutesPanel /></TabsContent>
-        <TabsContent value="middlewares" className="m-0"><MiddlewaresPanel /></TabsContent>
-        <TabsContent value="cron" className="m-0"><CronPanel /></TabsContent>
-        <TabsContent value="services" className="m-0"><ComingSoon name="Services" phase="16.4" /></TabsContent>
-        <TabsContent value="lifecycles" className="m-0"><ComingSoon name="Lifecycle hooks" phase="16.5" /></TabsContent>
-        <TabsContent value="plugins" className="m-0"><ComingSoon name="Plugins" phase="16.6" /></TabsContent>
+        <TabsContent value="routes" className="m-0 outline-none"><RoutesPanel /></TabsContent>
+        <TabsContent value="middlewares" className="m-0 outline-none"><MiddlewaresPanel /></TabsContent>
+        <TabsContent value="cron" className="m-0 outline-none"><CronPanel /></TabsContent>
+        <TabsContent value="services" className="m-0 outline-none"><ComingSoon def={TABS[3]} /></TabsContent>
+        <TabsContent value="lifecycles" className="m-0 outline-none"><ComingSoon def={TABS[4]} /></TabsContent>
+        <TabsContent value="plugins" className="m-0 outline-none"><ComingSoon def={TABS[5]} /></TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function ComingSoon({ name, phase }: { name: string; phase: string }) {
+function ComingSoon({ def }: { def: TabDef }) {
+  const Icon = def.icon;
   return (
-    <div className="border border-dashed border-border rounded-xl p-12 text-center space-y-3 bg-muted/20">
-      <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
-      <h3 className="text-lg font-semibold">{name}</h3>
-      <p className="text-sm text-muted-foreground max-w-md mx-auto">
-        Coming in Phase {phase}. Until then, scaffold from the CLI:{" "}
-        <code className="text-xs">enterprise generate {name.toLowerCase().split(" ")[0]} &lt;name&gt;</code>
-      </p>
+    <div className="relative overflow-hidden rounded-2xl border border-dashed border-border bg-gradient-to-br from-muted/20 via-transparent to-muted/20 p-12 md:p-16 text-center">
+      <div className="absolute inset-0 bg-grid-white/5 pointer-events-none" />
+      <div className="relative space-y-5 max-w-md mx-auto">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20">
+          <Icon className="w-8 h-8 text-primary" />
+        </div>
+        <div className="space-y-1.5">
+          <h3 className="text-xl font-semibold tracking-tight">{def.label}</h3>
+          <p className="text-muted-foreground text-sm leading-relaxed">{def.hint}</p>
+        </div>
+        <div className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/20">
+          <Sparkles className="w-3.5 h-3.5" />
+          Coming in Phase {def.phase}
+        </div>
+        <div className="text-xs text-muted-foreground/80 pt-2 space-y-1">
+          <p>Need this today? Scaffold from the CLI:</p>
+          <code className="inline-block text-[11px] bg-muted px-2 py-1 rounded font-mono">
+            enterprise generate {def.label.toLowerCase().split(" ")[0]} &lt;name&gt;
+          </code>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BuilderSkeleton() {
+  return (
+    <div className="p-8 space-y-6 animate-pulse">
+      <div className="h-20 bg-muted/30 rounded-2xl" />
+      <div className="h-12 bg-muted/30 rounded-xl" />
+      <div className="h-96 bg-muted/30 rounded-2xl" />
     </div>
   );
 }

@@ -8,9 +8,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@enterprise/design-system";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock as ClockIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { EmptyState, PanelLoadingSkeleton } from "./shared";
 
 type UserCron = {
   id: number;
@@ -89,9 +90,15 @@ export function CronPanel() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading…</div>
+            <PanelLoadingSkeleton />
           ) : userCrons.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No cron jobs yet.</div>
+            <EmptyState
+              icon={ClockIcon}
+              title="No scheduled tasks yet"
+              description="Run code on a schedule — cleanups, digest emails, daily backups, anything. Pick a preset or write a 5-field cron expression."
+              ctaLabel="Schedule your first cron"
+              onCta={() => { setEditing(null); setDialogOpen(true); }}
+            />
           ) : (
             <TableRoot>
               <TableHeader>

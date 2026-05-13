@@ -7,9 +7,10 @@ import {
   Badge, Button, Input, Label, Textarea, Switch,
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@enterprise/design-system";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers as LayersIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { EmptyState, PanelLoadingSkeleton } from "./shared";
 
 type UserMiddleware = {
   id: number;
@@ -72,11 +73,15 @@ export function MiddlewaresPanel() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading…</div>
+            <PanelLoadingSkeleton />
           ) : rows.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              No middlewares yet. Click <b>New middleware</b> above.
-            </div>
+            <EmptyState
+              icon={LayersIcon}
+              title="No middlewares yet"
+              description="Intercept every request — add auth checks, request IDs, rate limits or anything else. Saved changes apply instantly."
+              ctaLabel="Create your first middleware"
+              onCta={() => { setEditing(null); setDialogOpen(true); }}
+            />
           ) : (
             <TableRoot>
               <TableHeader>

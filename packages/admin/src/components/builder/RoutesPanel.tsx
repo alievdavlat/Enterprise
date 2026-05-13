@@ -31,9 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@enterprise/design-system";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Network as NetworkIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { EmptyState, PanelLoadingSkeleton } from "./shared";
 
 type UserRoute = {
   id: number;
@@ -109,11 +110,15 @@ export function RoutesPanel() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading…</div>
+            <PanelLoadingSkeleton />
           ) : rows.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              No routes yet. Click <b>New route</b> above.
-            </div>
+            <EmptyState
+              icon={NetworkIcon}
+              title="No custom routes yet"
+              description="Build your own REST endpoints right here — they go live at /api/u/... without a server restart."
+              ctaLabel="Create your first route"
+              onCta={() => { setEditing(null); setDialogOpen(true); }}
+            />
           ) : (
             <TableRoot>
               <TableHeader>
