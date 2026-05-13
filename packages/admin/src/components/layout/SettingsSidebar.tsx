@@ -28,6 +28,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
+  Switch,
 } from "@enterprise/design-system";
 import { cn } from "@/lib/utils";
 
@@ -52,9 +53,9 @@ const NavLink = ({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-md w-full text-sm font-medium transition-colors",
+        "flex items-center gap-3 px-3 py-2 rounded-md w-full text-sm font-medium transition-colors !no-underline hover:no-underline",
         active
-          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+          ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:!text-primary-foreground"
           : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       )}
     >
@@ -188,29 +189,28 @@ export function SettingsSidebar() {
     }
   };
 
+  const allExpanded = expanded.length === ALL_SECTION_IDS.length;
+
   return (
     <aside className="w-64 shrink-0 border-r border-border bg-sidebar/80 flex flex-col overflow-hidden">
-      <div className="h-14 flex items-center justify-between px-4 border-b border-border">
-        <span className="font-semibold text-sm">Settings</span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onChange(ALL_SECTION_IDS)}
-            className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded"
-            title="Expand all sections"
-          >
-            All
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange([])}
-            className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded"
-            title="Collapse all sections"
-          >
-            None
-          </button>
-        </div>
+      <div className="px-4 py-4 border-b border-border/50 shrink-0">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Settings
+        </p>
       </div>
+
+      {/* Strapi-style toggle — matches ContentManagerSidebar / SchemaBuilder
+          so the secondary-sidebar UX is consistent across the admin. */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <span className="text-xs text-muted-foreground">
+          {allExpanded ? "Expanded" : "Collapsed"}
+        </span>
+        <Switch
+          checked={allExpanded}
+          onCheckedChange={(checked) => onChange(checked ? [...ALL_SECTION_IDS] : [])}
+        />
+      </div>
+
       <nav className="flex-1 overflow-y-auto py-2 px-2">
         <Accordion
           type="multiple"
@@ -220,7 +220,7 @@ export function SettingsSidebar() {
         >
           {SECTIONS.map((section) => (
             <AccordionItem key={section.id} value={section.id} className="border-0">
-              <AccordionTrigger className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:no-underline rounded-md">
+              <AccordionTrigger className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground !no-underline hover:!no-underline rounded-md">
                 {section.title}
               </AccordionTrigger>
               <AccordionContent className="pb-2">
