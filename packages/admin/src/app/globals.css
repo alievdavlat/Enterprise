@@ -122,11 +122,131 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Text rendering: hint subpixel for clean Latin glyphs on dark bg. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   html {
     @apply font-sans;
   }
+  /* Default link styling — admin sidebars opt out via !no-underline.
+     Keeps content prose links readable without polluting nav. */
+  a {
+    text-decoration: none;
+  }
 }
+
+/* -------------------------------------------------------------------------
+ * Brand design tokens — Phase 36.1
+ * ---------------------------------------------------------------------- */
+:root {
+  /* Brand accents — a single primary "violet" with secondary gradients.
+     Used by hero glows, CTA buttons, brand decorations. */
+  --brand-violet: 262 83% 58%;
+  --brand-violet-dark: 264 50% 42%;
+  --brand-blue: 217 91% 60%;
+  --brand-pink: 330 81% 60%;
+  --brand-orange: 24 95% 53%;
+  --brand-emerald: 158 64% 52%;
+
+  /* Semantic */
+  --semantic-success: 142 71% 45%;
+  --semantic-warning: 38 92% 50%;
+  --semantic-info: 199 89% 48%;
+  --semantic-danger: 0 84% 60%;
+
+  /* Elevation — soft, modern. Avoid heavy black shadows on dark bg. */
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 0.10);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.10), 0 4px 6px -4px rgb(0 0 0 / 0.06);
+  --shadow-glow: 0 0 32px -8px hsl(var(--brand-violet) / 0.50);
+
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 0.40);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.30), 0 2px 4px -2px rgb(0 0 0 / 0.20);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.35), 0 4px 6px -4px rgb(0 0 0 / 0.25);
+  --shadow-glow: 0 0 40px -4px hsl(var(--brand-violet) / 0.60);
+}
+
+/* -------------------------------------------------------------------------
+ * Decorative utilities
+ * ---------------------------------------------------------------------- */
+
+/** Soft animated gradient mesh — login + hero panels. */
+.bg-mesh {
+  background-image:
+    radial-gradient(at 0% 0%, hsl(var(--brand-violet) / 0.18) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsl(var(--brand-blue) / 0.14) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsl(var(--brand-pink) / 0.12) 0px, transparent 50%),
+    radial-gradient(at 0% 80%, hsl(var(--brand-emerald) / 0.10) 0px, transparent 50%);
+}
+
+/** Static grid overlay — adds depth to hero / empty states. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.30) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.30) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/** Subtle dot grid alternative. */
+.bg-dots {
+  background-image: radial-gradient(hsl(var(--border) / 0.45) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/** Brand violet→pink gradient text. */
+.text-brand-gradient {
+  background-image: linear-gradient(135deg, hsl(var(--brand-violet)), hsl(var(--brand-pink)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/** Soft glow ring used on hero icon tiles. */
+.ring-glow {
+  box-shadow:
+    0 0 0 1px hsl(var(--brand-violet) / 0.20),
+    0 8px 32px -8px hsl(var(--brand-violet) / 0.35);
+}
+
+/** Animated shimmer for skeleton loaders. */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.6) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/** Float animation for hero illustrations. */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-8px); }
+}
+.animate-float-slow { animation: float-slow 4s ease-in-out infinite; }
+
+/** Confetti-friendly pop — used on first content type create. */
+@keyframes pop-in {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop-in { animation: pop-in var(--motion-slow) var(--motion-ease) both; }
 
 .cm-theme-json .cm-editor {
   background-color: theme("colors.background");

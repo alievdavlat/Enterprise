@@ -35,6 +35,7 @@ import { Plus, Pencil, Trash2, Network as NetworkIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { EmptyState, PanelLoadingSkeleton } from "./shared";
+import { IllustrationCode } from "@/components/illustrations";
 
 type UserRoute = {
   id: number;
@@ -113,7 +114,7 @@ export function RoutesPanel() {
             <PanelLoadingSkeleton />
           ) : rows.length === 0 ? (
             <EmptyState
-              icon={NetworkIcon}
+              illustration={<IllustrationCode size={180} className="animate-float-slow" />}
               title="No custom routes yet"
               description="Build your own REST endpoints right here — they go live at /api/u/... without a server restart."
               ctaLabel="Create your first route"
