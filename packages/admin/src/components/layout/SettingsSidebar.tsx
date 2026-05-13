@@ -19,10 +19,7 @@ import {
   Wrench,
   History,
   BookOpen,
-  Clock,
   Database,
-  Layers,
-  Network,
   KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -87,9 +84,14 @@ const SECTIONS: Section[] = [
       { href: "/settings/webhooks", label: "Webhooks", icon: Webhook },
       { href: "/settings/api-docs", label: "API Documentation", icon: BookOpen },
       { href: "/settings/content-history", label: "Content History", icon: History, pro: true },
-      { href: "/settings/cron", label: "Cron jobs", icon: Clock },
-      { href: "/settings/user-middlewares", label: "Middlewares", icon: Layers },
-      { href: "/settings/user-routes", label: "Custom Routes", icon: Network },
+    ],
+  },
+  {
+    title: "Code Builder",
+    items: [
+      // Unified no-code backend builder — routes / middlewares / cron in
+      // one tabbed page. Standalone URLs still work for deep-links.
+      { href: "/settings/builder", label: "Builder", icon: Wrench },
     ],
   },
   {
