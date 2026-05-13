@@ -20,10 +20,20 @@ interface AppState {
   login: (token: string, user: User) => void;
   logout: () => void;
   fetchContentTypes: () => Promise<void>;
+  /** Force the next fetchContentTypes() to hit the network (call after schema edits). */
+  invalidateContentTypes: () => void;
   setIsLoading: (loading: boolean) => void;
 }
 
 let _fetchPromise: Promise<void> | null = null;
+/**
+ * Last successful fetch timestamp. We keep a short freshness window so that
+ * navigating between pages — each of which calls `fetchContentTypes()` on
+ * mount — doesn't re-hit the API. 30s is short enough that the next focus /
+ * page-load picks up admin-side schema changes.
+ */
+let _lastFetchAt = 0;
+const FRESHNESS_WINDOW_MS = 30 * 1000;
 
 export const useAppStore = create<AppState>((set, get) => ({
   user:
@@ -48,6 +58,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   fetchContentTypes: async () => {
     if (_fetchPromise) return _fetchPromise;
+    // Skip the network round-trip when we fetched recently and already have
+    // a populated list. Mutations (create/edit schema) reset the timestamp
+    // via `invalidateContentTypes` so freshness is still guaranteed.
+    if (
+      Date.now() - _lastFetchAt < FRESHNESS_WINDOW_MS &&
+      get().contentTypes.length > 0
+    ) {
+      return;
+    }
 
     _fetchPromise = (async () => {
       try {
@@ -55,6 +74,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const data = res.data?.data;
         if (Array.isArray(data)) {
           set({ contentTypes: data });
+          _lastFetchAt = Date.now();
         }
       } catch (e: unknown) {
         const err = e as { response?: { status?: number } };
@@ -67,6 +87,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     })();
 
     return _fetchPromise;
+  },
+
+  invalidateContentTypes: () => {
+    _lastFetchAt = 0;
   },
 
   setIsLoading: (isLoading) => set({ isLoading }),

@@ -1251,6 +1251,10 @@ export class EnterpriseServer {
    * Express middleware that dispatches the (mutable) user middleware list.
    * Mounted once in setupMiddlewares and reads `this.userDbMiddlewares` per
    * request so hot reload doesn't require touching the Express stack.
+   *
+   * Fast-path when the list is empty: skip the async hop entirely. Most
+   * production installs have no user middlewares; the per-request cost of
+   * the dispatcher is then a single property read + branch.
    */
   private async dispatchUserMiddlewares(
     req: Request,
@@ -1258,6 +1262,7 @@ export class EnterpriseServer {
     next: NextFunction,
   ): Promise<void> {
     const stack = this.userDbMiddlewares;
+    if (stack.length === 0) return next();
     let i = 0;
     const dispatch = async (err?: unknown): Promise<void> => {
       if (err) return next(err as Error);
@@ -1328,12 +1333,16 @@ export class EnterpriseServer {
    * Express handler mounted at /api/u/*. Iterates user routes and invokes
    * the first matching (method, path) pair. Falls through to the 404 handler
    * when nothing matches.
+   *
+   * Empty-list fast-path identical to dispatchUserMiddlewares — keeps the
+   * cost negligible when the no-code builder isn't used.
    */
   private async dispatchUserRoute(
     req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> {
+    if (this.userDbRoutes.length === 0) return next();
     // The router is mounted at /api/u so the path we match against is
     // req.path (already stripped). User authors paths like "/hello/:name".
     const method = req.method.toUpperCase();

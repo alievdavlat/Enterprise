@@ -26,3 +26,6 @@ docs
 # Compiled output in backend src (use dist only)
 packages/backends/express/src/**/*.js
 packages/backends/express/src/**/*.js.map
+
+# tsup bundler temporary configs
+**/tsup.config.bundled_*.mjs
