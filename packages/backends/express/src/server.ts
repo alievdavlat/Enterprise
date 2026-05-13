@@ -60,6 +60,17 @@ export class EnterpriseServer {
   private config: EnterpriseConfig;
   private graphqlServer!: ApolloServer;
   private userMiddlewareHandlers: { name: string; handler: import("express").RequestHandler }[] = [];
+  /** Compiled DB-stored middleware list, swapped wholesale on save. */
+  private userDbMiddlewares: { name: string; fn: (req: Request, res: Response, next: NextFunction) => unknown | Promise<unknown> }[] = [];
+  /** Compiled DB-stored route list, scanned per-request by dispatcher. */
+  private userDbRoutes: {
+    name: string;
+    method: string;
+    path: string;
+    regex: RegExp;
+    paramNames: string[];
+    fn: (req: Request, res: Response, ctx: { params: Record<string, string>; logger: typeof console }) => unknown | Promise<unknown>;
+  }[] = [];
   private discoveredPlugins: { registered: string[]; disabled: string[] } = { registered: [], disabled: [] };
   private discoveredMiddlewares: { resolved: string[]; unresolved: string[]; discovered: string[] } = {
     resolved: [],
@@ -367,6 +378,41 @@ export class EnterpriseServer {
       }
     }
 
+    // User-defined middlewares created from the admin UI (no-code builder).
+    // Compiled to (req,res,next) handlers and dispatched by a single Express
+    // middleware so changes hot-swap without restart.
+    if (!(await this.db.tableExists("enterprise_user_middlewares"))) {
+      await this.db.createTable("enterprise_user_middlewares", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "code", type: "text", nullable: false },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "priority", type: "integer", nullable: false },
+          { name: "description", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_user_middlewares created");
+    }
+
+    // User-defined custom routes (no-code builder). Each row is a (method,
+    // path, code) trio — the dispatcher matches the request against the
+    // ordered list and invokes the compiled handler.
+    if (!(await this.db.tableExists("enterprise_user_routes"))) {
+      await this.db.createTable("enterprise_user_routes", {
+        columns: [
+          { name: "name", type: "string", nullable: false, unique: true },
+          { name: "method", type: "string", nullable: false },
+          { name: "path", type: "string", nullable: false },
+          { name: "code", type: "text", nullable: false },
+          { name: "enabled", type: "boolean", nullable: false },
+          { name: "description", type: "text", nullable: true },
+        ],
+        timestamps: true,
+      });
+      console.log("[Enterprise] Table enterprise_user_routes created");
+    }
+
     // User-defined cron jobs created from the admin UI (no-code builder).
     // Each row carries a schedule + a JS snippet that's compiled to a handler
     // at register time (see applyUserCronJobs).
@@ -450,15 +496,16 @@ export class EnterpriseServer {
       }
     }
 
-    // 4) Default permission rules (Strapi-style). Admin/superAdmin bypass via
-    //    PermissionManager.defaultAllowAdmin. Public role can read; authenticated
-    //    role can also write/publish. Admin UI Settings > Roles can override
-    //    these via enterprise_permissions (synced back in via syncPermissionsFromDb).
+    // 4) Default permission rules (Strapi-style + Phase 17 bulk variants).
+    //    Admin/superAdmin bypass via PermissionManager.defaultAllowAdmin.
+    //    Public role can read; authenticated can also write/publish/bulk.
+    //    Admin UI Settings > Roles can override via enterprise_permissions.
     const WRITE_ACTIONS = ["create", "update", "delete", "publish", "unpublish"];
+    const BULK_ACTIONS = ["bulkCreate", "bulkUpdate", "bulkDelete"];
     const READ_ACTIONS = ["find", "findOne", "count"];
     for (const schema of this.schemaRegistry.getAll()) {
       const uid = schema.uid;
-      for (const action of [...READ_ACTIONS, ...WRITE_ACTIONS]) {
+      for (const action of [...READ_ACTIONS, ...WRITE_ACTIONS, ...BULK_ACTIONS]) {
         this.permissionManager.addRule({ action: `${uid}.${action}`, role: "authenticated", allow: true });
         this.permissionManager.addRule({
           action: `${uid}.${action}`,
@@ -469,6 +516,15 @@ export class EnterpriseServer {
     }
     this.permissionManager.addRule({ action: "plugin::upload.read", role: "authenticated", allow: true });
     this.permissionManager.addRule({ action: "plugin::upload.assets.create", role: "authenticated", allow: true });
+
+    // Register a couple of built-in conditions plugins / roles can reference.
+    this.permissionManager.registerCondition("authenticated", ({ user }) => Boolean(user));
+    this.permissionManager.registerCondition("isOwner", ({ user, entry }) => {
+      const u = user as { id?: number | string } | null | undefined;
+      const e = entry as { userId?: number | string; createdBy?: number | string } | null | undefined;
+      if (!u?.id || !e) return false;
+      return String(e.userId ?? e.createdBy ?? "") === String(u.id);
+    });
 
     // Layer admin-defined overrides from enterprise_permissions on top.
     await this.syncPermissionsFromDb();
@@ -634,6 +690,13 @@ export class EnterpriseServer {
         console.warn(`[Enterprise:Middlewares] Failed to apply "${m.name}":`, err);
       }
     }
+
+    // DB-backed user middlewares (no-code builder). One Express middleware
+    // dispatches the (mutable) compiled list so saves take effect without a
+    // server restart.
+    this.app.use((req, res, next) => {
+      void this.dispatchUserMiddlewares(req, res, next);
+    });
 
     // Health check
     this.app.get("/health", (req, res) => {
@@ -819,6 +882,9 @@ export class EnterpriseServer {
         runBackupNow: () => this.runBackup(),
         listBackups: () => this.listBackupFiles(),
         reloadUserCronJobs: () => this.applyUserCronJobs(),
+        reloadUserMiddlewares: () => this.applyUserMiddlewares(),
+        reloadUserRoutes: () => this.applyUserRoutes(),
+        permissionManager: this.permissionManager,
       }),
     );
 
@@ -855,6 +921,13 @@ export class EnterpriseServer {
       contentApiAuth,
       createSearchRouter(this.schemaRegistry, this.db, this.permissionManager),
     );
+
+    // DB-backed user custom routes (no-code builder). Mounted at /api/u/*
+    // so they live in a separate namespace from generated content-type
+    // routes and never collide with /api/{plural}.
+    this.app.use(`${apiPrefix}/u`, contentApiAuth, (req, res, next) => {
+      void this.dispatchUserRoute(req, res, next);
+    });
   }
 
   private async setupGraphQL(): Promise<void> {
@@ -918,6 +991,17 @@ export class EnterpriseServer {
       await this.applyUserCronJobs();
     } catch (err) {
       console.warn("[Enterprise] applyUserCronJobs failed:", err);
+    }
+    // Compile DB-stored user middlewares + routes (no-code builder).
+    try {
+      await this.applyUserMiddlewares();
+    } catch (err) {
+      console.warn("[Enterprise] applyUserMiddlewares failed:", err);
+    }
+    try {
+      await this.applyUserRoutes();
+    } catch (err) {
+      console.warn("[Enterprise] applyUserRoutes failed:", err);
     }
     // Start scheduled jobs once the server is about to come online.
     try {
@@ -991,12 +1075,39 @@ export class EnterpriseServer {
       const roleNameById = new Map(roles.map((r) => [r.id, r.name?.toLowerCase()]));
       const permissions = (await this.db.findMany("enterprise_permissions", {
         pagination: { page: 1, pageSize: 5000 },
-      })).data as { roleId: number; action: string; subject?: string | null }[];
+      })).data as {
+        roleId: number;
+        action: string;
+        subject?: string | null;
+        properties?: string | null;
+        conditions?: string | null;
+      }[];
       for (const p of permissions) {
         const roleName = roleNameById.get(p.roleId);
         if (!roleName) continue;
         const action = p.subject ? `${p.subject}.${p.action}` : p.action;
-        this.permissionManager.addRule({ action, role: roleName, allow: true });
+        // Parse field-level scope from properties JSON (Strapi shape:
+        // `{ fields: ["title", "body"] }`).
+        let fields: string[] | undefined;
+        if (p.properties) {
+          try {
+            const parsed = JSON.parse(p.properties);
+            if (Array.isArray(parsed?.fields)) fields = parsed.fields;
+          } catch {
+            /* ignore */
+          }
+        }
+        // Parse named conditions referenced by this rule.
+        let conditions: string[] | undefined;
+        if (p.conditions) {
+          try {
+            const parsed = JSON.parse(p.conditions);
+            if (Array.isArray(parsed)) conditions = parsed;
+          } catch {
+            /* ignore */
+          }
+        }
+        this.permissionManager.addRule({ action, role: roleName, allow: true, fields, conditions });
       }
       if (permissions.length > 0) {
         console.log(`[Enterprise] Synced ${permissions.length} permission rule(s) from DB`);
@@ -1076,6 +1187,149 @@ export class EnterpriseServer {
         console.warn(`[Enterprise] User cron "${row.name}" failed to compile:`, err);
       }
     }
+  }
+
+  /**
+   * Compile every enabled row in enterprise_user_middlewares and swap the
+   * in-memory dispatcher list. The Express app stays mounted with a single
+   * dispatch handler (registered in setupMiddlewares) so we never have to
+   * touch the Express middleware stack at runtime.
+   */
+  async applyUserMiddlewares(): Promise<void> {
+    if (!(await this.db.tableExists("enterprise_user_middlewares"))) {
+      this.userDbMiddlewares = [];
+      return;
+    }
+    const rows = (
+      await this.db.findMany("enterprise_user_middlewares", {
+        pagination: { page: 1, pageSize: 500 },
+        sort: [{ field: "priority", direction: "asc" }],
+      })
+    ).data as { name: string; code: string; enabled?: boolean | number }[];
+    const compiled: typeof this.userDbMiddlewares = [];
+    for (const row of rows) {
+      if (!row.enabled) continue;
+      try {
+        const fn = new Function(
+          "req",
+          "res",
+          "next",
+          `return (async () => { ${row.code} })()`,
+        ) as (req: Request, res: Response, next: NextFunction) => unknown;
+        compiled.push({ name: row.name, fn });
+      } catch (err) {
+        console.warn(`[Enterprise] User middleware "${row.name}" failed to compile:`, err);
+      }
+    }
+    this.userDbMiddlewares = compiled;
+  }
+
+  /**
+   * Express middleware that dispatches the (mutable) user middleware list.
+   * Mounted once in setupMiddlewares and reads `this.userDbMiddlewares` per
+   * request so hot reload doesn't require touching the Express stack.
+   */
+  private async dispatchUserMiddlewares(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const stack = this.userDbMiddlewares;
+    let i = 0;
+    const dispatch = async (err?: unknown): Promise<void> => {
+      if (err) return next(err as Error);
+      if (i >= stack.length) return next();
+      const entry = stack[i++];
+      try {
+        await entry.fn(req, res, dispatch as NextFunction);
+      } catch (e) {
+        next(e as Error);
+      }
+    };
+    await dispatch();
+  }
+
+  /**
+   * Compile every enabled row in enterprise_user_routes and swap the
+   * in-memory route list. `path` supports Express-style `:param` segments
+   * — we precompile each to a regex with capture groups so dispatch is
+   * cheap.
+   */
+  async applyUserRoutes(): Promise<void> {
+    if (!(await this.db.tableExists("enterprise_user_routes"))) {
+      this.userDbRoutes = [];
+      return;
+    }
+    const rows = (
+      await this.db.findMany("enterprise_user_routes", {
+        pagination: { page: 1, pageSize: 500 },
+      })
+    ).data as {
+      name: string;
+      method: string;
+      path: string;
+      code: string;
+      enabled?: boolean | number;
+    }[];
+    const compiled: typeof this.userDbRoutes = [];
+    for (const row of rows) {
+      if (!row.enabled) continue;
+      try {
+        const { regex, paramNames } = pathToRegex(row.path);
+        const fn = new Function(
+          "req",
+          "res",
+          "ctx",
+          `return (async () => { ${row.code} })()`,
+        ) as (
+          req: Request,
+          res: Response,
+          ctx: { params: Record<string, string>; logger: typeof console },
+        ) => unknown;
+        compiled.push({
+          name: row.name,
+          method: row.method.toUpperCase(),
+          path: row.path,
+          regex,
+          paramNames,
+          fn,
+        });
+      } catch (err) {
+        console.warn(`[Enterprise] User route "${row.name}" failed to compile:`, err);
+      }
+    }
+    this.userDbRoutes = compiled;
+  }
+
+  /**
+   * Express handler mounted at /api/u/*. Iterates user routes and invokes
+   * the first matching (method, path) pair. Falls through to the 404 handler
+   * when nothing matches.
+   */
+  private async dispatchUserRoute(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    // The router is mounted at /api/u so the path we match against is
+    // req.path (already stripped). User authors paths like "/hello/:name".
+    const method = req.method.toUpperCase();
+    for (const route of this.userDbRoutes) {
+      if (route.method !== method && route.method !== "ALL") continue;
+      const match = route.regex.exec(req.path);
+      if (!match) continue;
+      const params: Record<string, string> = {};
+      route.paramNames.forEach((n, idx) => {
+        params[n] = decodeURIComponent(match[idx + 1] ?? "");
+      });
+      try {
+        await route.fn(req, res, { params, logger: console });
+      } catch (err) {
+        next(err as Error);
+      }
+      return;
+    }
+    next();
   }
 
   /**
@@ -1270,6 +1524,26 @@ export class EnterpriseServer {
       services: this.discoveredServices,
     };
   }
+}
+
+/**
+ * Compile a path pattern like `/items/:id/sub/:slug` into a regex with
+ * capture groups in order, plus the list of param names. Wildcards (`*`)
+ * become non-greedy matches. Trailing slash is optional.
+ */
+function pathToRegex(pattern: string): { regex: RegExp; paramNames: string[] } {
+  const paramNames: string[] = [];
+  const escaped = pattern
+    .replace(/[\.+?^${}()|\[\]\\]/g, "\\$&")
+    .replace(/\/:([a-zA-Z_$][a-zA-Z0-9_$]*)/g, (_, name) => {
+      paramNames.push(name);
+      return "/([^/]+)";
+    })
+    .replace(/\*/g, ".*");
+  return {
+    regex: new RegExp(`^${escaped}/?$`),
+    paramNames,
+  };
 }
 
 /**

@@ -39,6 +39,12 @@ export function createAdminRouter(
     listBackups?: () => Promise<{ name: string; size: number; createdAt: string }[]>;
     /** Rebuild the user-defined cron jobs after CRUD on enterprise_user_cron_jobs. */
     reloadUserCronJobs?: () => Promise<void> | void;
+    /** Rebuild the user-defined middlewares after CRUD on enterprise_user_middlewares. */
+    reloadUserMiddlewares?: () => Promise<void> | void;
+    /** Rebuild the user-defined routes after CRUD on enterprise_user_routes. */
+    reloadUserRoutes?: () => Promise<void> | void;
+    /** Live PermissionManager — exposed for the /actions and /conditions endpoints. */
+    permissionManager?: import("@enterprise/core").PermissionManager;
   },
 ): Router {
   const router = Router();
@@ -46,6 +52,8 @@ export function createAdminRouter(
   const getDiscoveredArtifacts = options?.getDiscoveredArtifacts;
   const reloadPermissions = options?.reloadPermissions;
   const reloadUserCronJobs = options?.reloadUserCronJobs;
+  const reloadUserMiddlewares = options?.reloadUserMiddlewares;
+  const reloadUserRoutes = options?.reloadUserRoutes;
 
   // ---- System / Discovered artifacts ----
   router.get("/system", (_req: Request, res: Response) => {
@@ -600,6 +608,262 @@ export function createAdminRouter(
     } catch (err) {
       next(err);
     }
+  });
+
+  // ---- User-defined middlewares (Phase 16.2) ----
+  const USER_MIDDLEWARE_TABLE = "enterprise_user_middlewares";
+
+  router.get("/middlewares-list", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!(await db.tableExists(USER_MIDDLEWARE_TABLE))) return res.json({ data: [] });
+      const result = await db.findMany(USER_MIDDLEWARE_TABLE, {
+        pagination: { page: 1, pageSize: 500 },
+        sort: [{ field: "priority", direction: "asc" }],
+      });
+      res.json({ data: result.data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/middlewares-list", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name, code, enabled = true, priority = 100, description } = req.body ?? {};
+      if (!name || !code) {
+        return res.status(400).json({
+          error: { status: 400, message: "name and code are required" },
+        });
+      }
+      const safeName = String(name).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const existing = await db.findOneBy(USER_MIDDLEWARE_TABLE, { name: safeName });
+      if (existing) {
+        return res.status(409).json({
+          error: { status: 409, message: `Middleware "${safeName}" already exists` },
+        });
+      }
+      try {
+        new Function("req", "res", "next", `return (async () => { ${code} })()`);
+      } catch (err) {
+        return res.status(400).json({
+          error: {
+            status: 400,
+            message: `Compile error: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        });
+      }
+      const row = await db.create(USER_MIDDLEWARE_TABLE, {
+        name: safeName,
+        code,
+        enabled: !!enabled,
+        priority: Number(priority) || 100,
+        description: description ?? null,
+      });
+      try {
+        await reloadUserMiddlewares?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserMiddlewares failed:", err);
+      }
+      res.status(201).json({ data: row });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put("/middlewares-list/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      const { code, enabled, priority, description, name } = req.body ?? {};
+      const patch: Record<string, unknown> = {};
+      if (code !== undefined) {
+        try {
+          new Function("req", "res", "next", `return (async () => { ${code} })()`);
+        } catch (err) {
+          return res.status(400).json({
+            error: {
+              status: 400,
+              message: `Compile error: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          });
+        }
+        patch.code = code;
+      }
+      if (enabled !== undefined) patch.enabled = !!enabled;
+      if (priority !== undefined) patch.priority = Number(priority) || 100;
+      if (description !== undefined) patch.description = description;
+      if (name !== undefined) patch.name = String(name).replace(/[^a-zA-Z0-9_-]/g, "_");
+      await db.update(USER_MIDDLEWARE_TABLE, id, patch);
+      try {
+        await reloadUserMiddlewares?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserMiddlewares failed:", err);
+      }
+      const updated = await db.findOne(USER_MIDDLEWARE_TABLE, id);
+      res.json({ data: updated });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete("/middlewares-list/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      await db.delete(USER_MIDDLEWARE_TABLE, id);
+      try {
+        await reloadUserMiddlewares?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserMiddlewares failed:", err);
+      }
+      res.json({ data: { ok: true } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- User-defined custom routes (Phase 16.3) ----
+  const USER_ROUTE_TABLE = "enterprise_user_routes";
+  const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "ALL"]);
+
+  router.get("/user-routes", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!(await db.tableExists(USER_ROUTE_TABLE))) return res.json({ data: [] });
+      const result = await db.findMany(USER_ROUTE_TABLE, {
+        pagination: { page: 1, pageSize: 500 },
+        sort: [{ field: "created_at", direction: "desc" }],
+      });
+      res.json({ data: result.data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post("/user-routes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name, method, path, code, enabled = true, description } = req.body ?? {};
+      if (!name || !method || !path || !code) {
+        return res.status(400).json({
+          error: { status: 400, message: "name, method, path, and code are required" },
+        });
+      }
+      const upperMethod = String(method).toUpperCase();
+      if (!HTTP_METHODS.has(upperMethod)) {
+        return res.status(400).json({
+          error: { status: 400, message: `method must be one of: ${Array.from(HTTP_METHODS).join(", ")}` },
+        });
+      }
+      const safeName = String(name).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const existing = await db.findOneBy(USER_ROUTE_TABLE, { name: safeName });
+      if (existing) {
+        return res.status(409).json({
+          error: { status: 409, message: `Route "${safeName}" already exists` },
+        });
+      }
+      try {
+        new Function("req", "res", "ctx", `return (async () => { ${code} })()`);
+      } catch (err) {
+        return res.status(400).json({
+          error: {
+            status: 400,
+            message: `Compile error: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        });
+      }
+      const row = await db.create(USER_ROUTE_TABLE, {
+        name: safeName,
+        method: upperMethod,
+        path: String(path),
+        code,
+        enabled: !!enabled,
+        description: description ?? null,
+      });
+      try {
+        await reloadUserRoutes?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserRoutes failed:", err);
+      }
+      res.status(201).json({ data: row });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put("/user-routes/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      const { method, path, code, enabled, description, name } = req.body ?? {};
+      const patch: Record<string, unknown> = {};
+      if (method !== undefined) {
+        const upper = String(method).toUpperCase();
+        if (!HTTP_METHODS.has(upper)) {
+          return res.status(400).json({
+            error: { status: 400, message: `method must be one of: ${Array.from(HTTP_METHODS).join(", ")}` },
+          });
+        }
+        patch.method = upper;
+      }
+      if (path !== undefined) patch.path = String(path);
+      if (code !== undefined) {
+        try {
+          new Function("req", "res", "ctx", `return (async () => { ${code} })()`);
+        } catch (err) {
+          return res.status(400).json({
+            error: {
+              status: 400,
+              message: `Compile error: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          });
+        }
+        patch.code = code;
+      }
+      if (enabled !== undefined) patch.enabled = !!enabled;
+      if (description !== undefined) patch.description = description;
+      if (name !== undefined) patch.name = String(name).replace(/[^a-zA-Z0-9_-]/g, "_");
+      await db.update(USER_ROUTE_TABLE, id, patch);
+      try {
+        await reloadUserRoutes?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserRoutes failed:", err);
+      }
+      const updated = await db.findOne(USER_ROUTE_TABLE, id);
+      res.json({ data: updated });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete("/user-routes/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = paramId(req.params.id);
+      await db.delete(USER_ROUTE_TABLE, id);
+      try {
+        await reloadUserRoutes?.();
+      } catch (err) {
+        console.warn("[admin] reloadUserRoutes failed:", err);
+      }
+      res.json({ data: { ok: true } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ---- ACL: actions + conditions catalog (Phase 17) ----
+  // Used by the admin Roles editor to render the full matrix — built-in
+  // Strapi verbs, bulk variants, plugin-registered custom actions, and
+  // every action already referenced by a saved permission rule.
+  router.get("/actions", (_req: Request, res: Response) => {
+    const pm = options?.permissionManager;
+    const actions = pm ? pm.listKnownActions() : [];
+    // Also surface the per-CT action set so the UI can group by subject.
+    const subjects = schemaRegistry.getAll().map((s) => ({
+      uid: s.uid,
+      displayName: s.displayName,
+      kind: s.kind,
+    }));
+    res.json({ data: { actions, subjects } });
+  });
+
+  router.get("/conditions", (_req: Request, res: Response) => {
+    const pm = options?.permissionManager;
+    res.json({ data: pm ? pm.listConditions() : [] });
   });
 
   // ---- Users Management ----

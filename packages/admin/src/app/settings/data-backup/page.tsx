@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
@@ -14,7 +14,21 @@ import {
   Checkbox,
   Label,
   Badge,
+  Input,
+  Switch,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  TableRoot,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
 } from "@enterprise/design-system";
+import { Clock, RefreshCw } from "lucide-react";
 import {
   Download,
   Upload,
@@ -302,6 +316,222 @@ export default function DataBackupPage() {
           </pre>
         </CardContent>
       </Card>
+
+      <ScheduledBackupSection />
     </div>
+  );
+}
+
+interface BackupSchedule {
+  enabled?: boolean;
+  frequency?: "hourly" | "daily" | "weekly" | "cron";
+  cron?: string;
+  includeContent?: boolean;
+  includeUploads?: boolean;
+  retention?: number;
+}
+
+interface BackupFile {
+  name: string;
+  size: number;
+  createdAt: string;
+}
+
+/**
+ * Phase 15 UI — schedule + history. Configures the admin::backup-schedule
+ * core_store entry that EnterpriseServer.applyBackupSchedule reads. Toggle
+ * the switch and the server (re)registers a cron job.
+ */
+function ScheduledBackupSection() {
+  const [schedule, setSchedule] = useState<BackupSchedule>({
+    enabled: false,
+    frequency: "daily",
+    includeContent: true,
+    includeUploads: false,
+    retention: 7,
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [files, setFiles] = useState<BackupFile[]>([]);
+
+  const load = async () => {
+    try {
+      const [s, f] = await Promise.all([
+        api.get("/admin/backup-schedule"),
+        api.get("/admin/backups"),
+      ]);
+      setSchedule(s.data?.data ?? schedule);
+      setFiles((f.data?.data ?? []) as BackupFile[]);
+    } catch {
+      /* keep defaults */
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async (patch: Partial<BackupSchedule>) => {
+    const next = { ...schedule, ...patch };
+    setSchedule(next);
+    setSaving(true);
+    try {
+      await api.post("/admin/backup-schedule", next);
+      toast.success("Schedule saved");
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg ?? "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const runNow = async () => {
+    setRunning(true);
+    try {
+      const res = await api.post("/admin/backup-now");
+      const path = res.data?.data?.filePath;
+      toast.success(path ? `Backup written: ${path.split(/[/\\]/).pop()}` : "Backup written");
+      load();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg ?? "Backup failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const formatSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  return (
+    <Card className="border-border/60 shadow-sm">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              <CardTitle className="text-base">Scheduled backups</CardTitle>
+            </div>
+            <CardDescription>
+              Server writes a JSON backup to <code>backups/</code> on the configured cadence. Toggle off to pause.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={runNow} disabled={running}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${running ? "animate-spin" : ""}`} />
+            {running ? "Running…" : "Run now"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+          <div>
+            <div className="font-medium">Enable scheduled backups</div>
+            <p className="text-xs text-muted-foreground">
+              The cron job (re)registers automatically when this toggle changes.
+            </p>
+          </div>
+          <Switch
+            checked={!!schedule.enabled}
+            disabled={loading || saving}
+            onCheckedChange={(v) => save({ enabled: v })}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Frequency</Label>
+            <Select
+              value={schedule.frequency ?? "daily"}
+              onValueChange={(v) => save({ frequency: v as BackupSchedule["frequency"] })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hourly">Hourly</SelectItem>
+                <SelectItem value="daily">Daily (3am)</SelectItem>
+                <SelectItem value="weekly">Weekly (Sun 3am)</SelectItem>
+                <SelectItem value="cron">Custom cron expression</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="retention">Retention (keep last N)</Label>
+            <Input
+              id="retention"
+              type="number"
+              min={1}
+              value={schedule.retention ?? 7}
+              onChange={(e) => setSchedule((s) => ({ ...s, retention: Number(e.target.value) || 7 }))}
+              onBlur={() => save({ retention: schedule.retention })}
+            />
+          </div>
+          {schedule.frequency === "cron" && (
+            <div className="sm:col-span-2 space-y-2">
+              <Label htmlFor="cron-expr">Cron expression (5 fields)</Label>
+              <Input
+                id="cron-expr"
+                value={schedule.cron ?? ""}
+                placeholder="0 3 * * *"
+                className="font-mono"
+                onChange={(e) => setSchedule((s) => ({ ...s, cron: e.target.value }))}
+                onBlur={() => save({ cron: schedule.cron })}
+              />
+            </div>
+          )}
+          <div className="flex items-center gap-3 p-3 rounded-lg border">
+            <Switch
+              id="bk-content"
+              checked={schedule.includeContent ?? true}
+              onCheckedChange={(v) => save({ includeContent: v })}
+            />
+            <Label htmlFor="bk-content" className="cursor-pointer">Include content entries</Label>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-lg border">
+            <Switch
+              id="bk-uploads"
+              checked={schedule.includeUploads ?? false}
+              onCheckedChange={(v) => save({ includeUploads: v })}
+            />
+            <Label htmlFor="bk-uploads" className="cursor-pointer">Include media metadata</Label>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">Backup history</h3>
+            <Badge variant="outline">{files.length}</Badge>
+          </div>
+          {files.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-4 text-center border rounded-lg bg-muted/20">
+              No backups yet. Toggle the schedule or click <b>Run now</b>.
+            </p>
+          ) : (
+            <TableRoot>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs uppercase">File</TableHead>
+                  <TableHead className="text-xs uppercase">Size</TableHead>
+                  <TableHead className="text-xs uppercase">Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {files.map((f) => (
+                  <TableRow key={f.name}>
+                    <TableCell className="font-mono text-xs">{f.name}</TableCell>
+                    <TableCell className="text-xs">{formatSize(f.size)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(f.createdAt).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </TableRoot>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

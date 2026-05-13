@@ -48,7 +48,14 @@ export {
   type StrapiSchemaJson,
   type StrapiComponentJson,
 } from "./schema/loadStrapiSchema";
-export { PermissionManager, type PermissionRule, type Action, type Role } from "./permissions/PermissionManager";
+export {
+  PermissionManager,
+  DEFAULT_ACTIONS,
+  type PermissionRule,
+  type Action,
+  type Role,
+  type ConditionFn,
+} from "./permissions/PermissionManager";
 export {
   getDefaultUploadConfig,
   isAllowedMime,
