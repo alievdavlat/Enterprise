@@ -22,6 +22,9 @@ import {
   BookOpen,
   Clock,
   Database,
+  Layers,
+  Network,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +89,14 @@ const SECTIONS: Section[] = [
       { href: "/settings/api-docs", label: "API Documentation", icon: BookOpen },
       { href: "/settings/content-history", label: "Content History", icon: History, pro: true },
       { href: "/settings/cron", label: "Cron jobs", icon: Clock },
+      { href: "/settings/user-middlewares", label: "Middlewares", icon: Layers },
+      { href: "/settings/user-routes", label: "Custom Routes", icon: Network },
+    ],
+  },
+  {
+    title: "Authentication",
+    items: [
+      { href: "/settings/auth-providers", label: "Auth Providers", icon: KeyRound },
     ],
   },
   {
