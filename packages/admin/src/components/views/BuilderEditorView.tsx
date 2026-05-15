@@ -35,6 +35,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { javascript } from "@codemirror/lang-javascript";
+import { json as jsonLang } from "@codemirror/lang-json";
 import {
   BUILDER_KINDS,
   isBuilderKind,
@@ -109,6 +111,14 @@ function BuilderEditorInner({
     [form, code, enabled],
   );
   const isDirty = compositeKey !== baselineRef.current;
+
+  // Stabilize the CodeMirror extensions so the editor doesn't re-mount its
+  // language pack on every render — that's what triggered the "multiple
+  // instances of @codemirror/state" error in earlier passes.
+  const cmExtensions = useMemo(
+    () => getCodeMirrorExtensions(config.codeLanguage),
+    [config.codeLanguage],
+  );
 
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const pendingNavRef = useRef<string | null>(null);
@@ -470,7 +480,7 @@ function BuilderEditorInner({
                     indentOnInput: true,
                     autocompletion: true,
                   }}
-                  extensions={getCodeMirrorExtensions(config.codeLanguage)}
+                  extensions={cmExtensions}
                   onChange={(value) => setCode(value)}
                 />
               </div>
@@ -624,15 +634,9 @@ function asMsg(e: unknown): string | undefined {
 }
 
 function getCodeMirrorExtensions(language: "javascript" | "typescript" | "json") {
-  // Lazy-load language extensions at render time so we only pay for the
-  // language the user actually opens.
-  if (language === "json") {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { json } = require("@codemirror/lang-json");
-    return [json()];
-  }
-  // typescript / javascript both use the JS language pack with tsx flag.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { javascript } = require("@codemirror/lang-javascript");
+  // Static imports above — runtime require() splits @codemirror/state into
+  // separate module instances under Turbopack, which breaks the extension
+  // identity check.
+  if (language === "json") return [jsonLang()];
   return [javascript({ jsx: false, typescript: language === "typescript" })];
 }
