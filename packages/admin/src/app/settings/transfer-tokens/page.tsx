@@ -24,7 +24,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton, PageHeader } from "@/components/shared";
+import { ListSkeleton, PageHeader, EmptyCard } from "@/components/shared";
+import { IllustrationKey } from "@/components/illustrations";
 
 type TransferTokenRow = {
   id: number;
@@ -171,21 +172,17 @@ export default function TransferTokensPage() {
       {loading ? (
         <ListSkeleton rows={3} />
       ) : list.length === 0 ? (
-        <Card className="border-border/50">
-          <CardContent className="flex flex-col items-center justify-center py-16 px-6">
-            <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center mb-4">
-              <Truck className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <p className="text-lg font-medium mb-1">Add your first Transfer Token</p>
-            <p className="text-sm text-muted-foreground text-center mb-6 max-w-sm">
-              Create a transfer token to pull or push data via CLI or external tools.
-            </p>
+        <EmptyCard
+          illustration={<IllustrationKey size={140} />}
+          title="Add your first Transfer Token"
+          description="Create a transfer token to pull or push data via CLI or external tools."
+          action={
             <Button variant="outline" className="gap-2" onClick={openCreate}>
               <Plus className="w-4 h-4" />
               Add new Transfer Token
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <Card className="border-border/50">
           <TableRoot>

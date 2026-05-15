@@ -25,7 +25,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton, PageHeader } from "@/components/shared";
+import { ListSkeleton, PageHeader, EmptyCard } from "@/components/shared";
+import { IllustrationCode } from "@/components/illustrations";
 
 type WebhookRow = {
   id: number;
@@ -234,22 +235,17 @@ export default function WebhooksPage() {
       {loading ? (
         <ListSkeleton rows={4} />
       ) : list.length === 0 ? (
-        <Card className="border-border/50">
-          <CardContent className="flex flex-col items-center justify-center py-16 px-6">
-            <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center mb-4">
-              <Webhook className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <p className="text-lg font-medium mb-1">No webhooks yet</p>
-            <p className="text-sm text-muted-foreground text-center mb-6 max-w-sm">
-              Create a webhook to send HTTP requests when content or other
-              events occur.
-            </p>
+        <EmptyCard
+          illustration={<IllustrationCode size={140} />}
+          title="No webhooks yet"
+          description="Create a webhook to send HTTP requests when content or other events occur."
+          action={
             <Button className="gap-2" onClick={openCreate}>
               <Plus className="w-4 h-4" />
               Create new webhook
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <Card className="border-border/50">
           <TableRoot>

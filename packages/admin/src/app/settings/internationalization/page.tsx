@@ -24,7 +24,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "@enterprise/design-system";
-import { PageHeader, ListSkeleton } from "@/components/shared";
+import { PageHeader, ListSkeleton, EmptyCard } from "@/components/shared";
+import { IllustrationNoData } from "@/components/illustrations";
 
 type Locale = {
   id: number;
@@ -158,18 +159,17 @@ export default function InternationalizationPage() {
       {loading ? (
         <ListSkeleton rows={4} />
       ) : list.length === 0 ? (
-        <Card className="border-border/50">
-          <CardContent className="flex flex-col items-center justify-center py-16 px-6">
-            <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center mb-4">
-              <Globe className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <p className="text-lg font-medium mb-1">No locales yet</p>
-            <Button className="gap-2 mt-4" onClick={openCreate}>
+        <EmptyCard
+          illustration={<IllustrationNoData size={140} />}
+          title="No locales yet"
+          description="Add locales to translate your content into multiple languages."
+          action={
+            <Button className="gap-2" onClick={openCreate}>
               <Plus className="w-4 h-4" />
               Add new locale
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <Card className="border-border/50">
           <TableRoot>

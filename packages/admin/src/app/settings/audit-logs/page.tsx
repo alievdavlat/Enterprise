@@ -14,7 +14,8 @@ import {
   TableCell,
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
-import { ListSkeleton, PageHeader } from "@/components/shared";
+import { ListSkeleton, PageHeader, EmptyCard } from "@/components/shared";
+import { IllustrationNoData } from "@/components/illustrations";
 
 type AuditLogRow = {
   id: number;
@@ -67,17 +68,11 @@ export default function AuditLogsPage() {
       {loading ? (
         <ListSkeleton rows={5} />
       ) : list.length === 0 ? (
-        <Card className="border-border/50">
-          <CardContent className="flex flex-col items-center justify-center py-16 px-6">
-            <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center mb-4">
-              <ClipboardList className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <p className="text-lg font-medium mb-1">No audit logs yet</p>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Logs will appear here after login and other admin actions.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyCard
+          illustration={<IllustrationNoData size={140} />}
+          title="No audit logs yet"
+          description="Logs will appear here after login and other admin actions."
+        />
       ) : (
         <Card className="border-border/50">
           <TableRoot>

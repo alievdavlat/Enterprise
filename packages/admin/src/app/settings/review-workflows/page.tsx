@@ -18,7 +18,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { PageHeader, ListSkeleton } from "@/components/shared";
+import { PageHeader, ListSkeleton, EmptyCard } from "@/components/shared";
+import { IllustrationNoData } from "@/components/illustrations";
 
 type Stage = { id?: number; name: string; order: number };
 type Workflow = {
@@ -213,21 +214,17 @@ export default function ReviewWorkflowsPage() {
       {loading ? (
         <ListSkeleton rows={3} />
       ) : list.length === 0 ? (
-        <Card className="border-border/50">
-          <CardContent className="flex flex-col items-center justify-center py-16 px-6">
-            <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center mb-4">
-              <Zap className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <p className="text-lg font-medium mb-1">No review workflows yet</p>
-            <p className="text-sm text-muted-foreground text-center mb-6 max-w-sm">
-              Create a workflow with stages (e.g. To Do, In Review, Done) for content review.
-            </p>
+        <EmptyCard
+          illustration={<IllustrationNoData size={140} />}
+          title="No review workflows yet"
+          description="Create a workflow with stages (e.g. To Do, In Review, Done) for content review."
+          action={
             <Button className="gap-2" onClick={openCreate}>
               <Plus className="w-4 h-4" />
               Create workflow
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {list.map((w) => (
