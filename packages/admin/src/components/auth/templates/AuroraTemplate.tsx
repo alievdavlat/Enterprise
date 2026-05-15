@@ -112,14 +112,10 @@ export function AuroraTemplate({
 
               <Button
                 type="submit"
-                disabled={loading}
+                loading={loading}
                 className="w-full h-11 bg-zinc-100 hover:bg-white text-zinc-900 font-medium"
               >
-                {loading
-                  ? "Working…"
-                  : isRegister
-                    ? "Create account"
-                    : "Sign in"}
+                {isRegister ? "Create account" : "Sign in"}
               </Button>
             </form>
 

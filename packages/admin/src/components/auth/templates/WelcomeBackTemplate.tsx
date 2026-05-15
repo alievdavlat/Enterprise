@@ -102,10 +102,10 @@ export function WelcomeBackTemplate({
 
           <Button
             type="submit"
-            disabled={loading}
+            loading={loading}
             className="w-full h-11 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-100 font-medium"
           >
-            {loading ? "Working…" : isRegister ? "Sign up" : "Sign in"}
+            {isRegister ? "Sign up" : "Sign in"}
           </Button>
 
           <div className="flex items-center gap-3 text-xs text-zinc-500 py-1">

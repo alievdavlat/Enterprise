@@ -101,14 +101,8 @@ export function MinimalTemplate({
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading
-                ? isRegister
-                  ? "Creating account…"
-                  : "Signing in…"
-                : isRegister
-                  ? "Register"
-                  : "Sign in"}
+            <Button type="submit" className="w-full" loading={loading}>
+              {isRegister ? "Register" : "Sign in"}
             </Button>
 
             <p className="text-sm text-center text-muted-foreground pt-2">

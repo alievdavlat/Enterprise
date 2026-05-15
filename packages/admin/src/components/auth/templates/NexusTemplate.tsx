@@ -154,10 +154,10 @@ export function NexusTemplate({
 
             <Button
               type="submit"
-              disabled={loading}
+              loading={loading}
               className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-[0_0_24px_-6px_rgba(59,130,246,0.6)]"
             >
-              {loading ? "Working…" : "Continue"}
+              Continue
             </Button>
           </form>
 

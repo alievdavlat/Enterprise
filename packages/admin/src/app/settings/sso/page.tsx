@@ -83,8 +83,8 @@ export default function SSOPage() {
             Configure identity provider (SAML/OIDC)
           </p>
         </div>
-        <Button onClick={save} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
+        <Button onClick={save} loading={saving}>
+          Save
         </Button>
       </div>
 

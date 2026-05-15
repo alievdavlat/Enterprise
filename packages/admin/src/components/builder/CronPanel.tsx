@@ -251,7 +251,7 @@ function CronDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Create cron"}</Button>
+          <Button onClick={save} loading={saving}>{editing ? "Save changes" : "Create cron"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -81,7 +81,7 @@ export default function EmailSettingsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Email</h1>
           <p className="text-muted-foreground mt-1">Configure the email provider and send test emails</p>
         </div>
-        <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        <Button onClick={save} loading={saving}>Save</Button>
       </div>
 
       <Card className="border-border/50">

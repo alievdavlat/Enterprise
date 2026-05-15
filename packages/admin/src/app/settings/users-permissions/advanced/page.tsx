@@ -166,9 +166,9 @@ export default function AdvancedSettingsPage() {
         {/* AUTHENTICATION TAB */}
         <TabsContent value="auth" className="space-y-6">
           <div className="flex justify-end">
-            <Button onClick={save} disabled={saving} className="gap-2">
+            <Button onClick={save} loading={saving} className="gap-2">
               <Save className="w-4 h-4" />
-              {saving ? "Saving…" : "Save"}
+              Save
             </Button>
           </div>
 
@@ -364,9 +364,9 @@ function UICustomizationPanel({
                 Choose a layout for the public sign-in and sign-up pages. Changes apply immediately for everyone after saving.
               </CardDescription>
             </div>
-            <Button onClick={onSave} disabled={saving} className="gap-2">
+            <Button onClick={onSave} loading={saving} className="gap-2">
               <Save className="w-4 h-4" />
-              {saving ? "Saving…" : "Apply template"}
+              Apply template
             </Button>
           </div>
         </CardHeader>

@@ -47,6 +47,7 @@ export function EditEntryClient() {
   const [baselineKey, setBaselineKey] = useState<string>("{}");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [schemaLoading, setSchemaLoading] = useState(true);
   const [unsavedOpen, setUnsavedOpen] = useState(false);
@@ -171,6 +172,7 @@ export function EditEntryClient() {
 
   const executeDelete = async () => {
     if (!contentType) return;
+    setDeleting(true);
     try {
       await api.delete(`/${contentType.pluralName}/${id}`);
       setBaselineKey(currentKey); // suppress dirty guard on the resulting navigation
@@ -179,6 +181,7 @@ export function EditEntryClient() {
     } catch {
       toast.error("Error deleting entry");
     } finally {
+      setDeleting(false);
       setDeleteConfirmOpen(false);
     }
   };
@@ -267,8 +270,9 @@ export function EditEntryClient() {
 
       <DeleteEntryDialog
         open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
+        onOpenChange={(open) => !deleting && setDeleteConfirmOpen(open)}
         onConfirm={executeDelete}
+        loading={deleting}
       />
 
       <UnsavedChangesDialog

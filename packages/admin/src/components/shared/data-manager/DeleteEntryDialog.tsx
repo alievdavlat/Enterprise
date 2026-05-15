@@ -14,13 +14,14 @@ export interface DeleteEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void | Promise<void>;
+  loading?: boolean;
 }
-
 
 export const DeleteEntryDialog = ({
   open,
   onOpenChange,
   onConfirm,
+  loading = false,
 }: DeleteEntryDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,12 +37,14 @@ export const DeleteEntryDialog = ({
           <Button
             variant="outline"
             className="cursor-pointer"
+            disabled={loading}
             onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             variant="default"
             className="cursor-pointer"
+            loading={loading}
             onClick={onConfirm}>
             Delete
           </Button>

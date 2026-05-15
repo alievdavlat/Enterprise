@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Kbd, KbdGroup } from "@enterprise/design-system";
-import { CheckCircle2, Loader2, Trash2, AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Trash2 } from "lucide-react";
 
 export interface EntryStickyBarProps {
   isNew: boolean;
@@ -81,18 +81,15 @@ export const EntryStickyBar = ({
         <Button
           size="sm"
           onClick={onSave}
-          disabled={saving || (!isDirty && !isNew)}
+          loading={saving}
+          disabled={!isDirty && !isNew}
           className="gap-2">
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <>
-              <span>{isNew ? "Create" : "Save"}</span>
-              <KbdGroup className="hidden sm:inline-flex opacity-70">
-                <Kbd>{shortcutLabel}</Kbd>
-                <Kbd>S</Kbd>
-              </KbdGroup>
-            </>
+          <span>{isNew ? "Create" : "Save"}</span>
+          {!saving && (
+            <KbdGroup className="hidden sm:inline-flex opacity-70">
+              <Kbd>{shortcutLabel}</Kbd>
+              <Kbd>S</Kbd>
+            </KbdGroup>
           )}
         </Button>
       </div>

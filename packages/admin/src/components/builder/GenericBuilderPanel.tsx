@@ -291,7 +291,7 @@ function BuilderDialog<T extends { id: number; name?: string }>({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : `Create ${label.toLowerCase()}`}</Button>
+          <Button onClick={save} loading={saving}>{editing ? "Save changes" : `Create ${label.toLowerCase()}`}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

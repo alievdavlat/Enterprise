@@ -253,7 +253,7 @@ function CustomProviderDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Add provider"}</Button>
+          <Button onClick={save} loading={saving}>Add provider</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -385,8 +385,8 @@ function ProviderCard({
                 <ExternalLink className="w-3 h-3" />
                 Configure callback in {preset.displayName}: <code>/api/auth/oauth/{preset.name}/callback</code>
               </p>
-              <Button onClick={save} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
+              <Button onClick={save} loading={saving}>
+                Save
               </Button>
             </div>
           </CardContent>

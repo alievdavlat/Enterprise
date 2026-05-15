@@ -186,8 +186,8 @@ export default function AccountPage() {
               <Button type="button" variant="ghost" onClick={() => router.back()}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? "Saving…" : "Save changes"}
+              <Button type="submit" loading={saving}>
+                Save changes
               </Button>
             </div>
           </form>
@@ -237,8 +237,8 @@ export default function AccountPage() {
               />
             </div>
             <div className="sm:col-span-2 flex justify-end pt-2">
-              <Button type="submit" disabled={pwSaving}>
-                {pwSaving ? "Updating…" : "Change password"}
+              <Button type="submit" loading={pwSaving}>
+                Change password
               </Button>
             </div>
           </form>

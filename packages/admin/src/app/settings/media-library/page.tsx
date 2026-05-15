@@ -82,8 +82,8 @@ export default function MediaLibrarySettingsPage() {
             Configure the settings for the Media Library
           </p>
         </div>
-        <Button onClick={save} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
+        <Button onClick={save} loading={saving}>
+          Save
         </Button>
       </div>
       <Card className="border-border/50">

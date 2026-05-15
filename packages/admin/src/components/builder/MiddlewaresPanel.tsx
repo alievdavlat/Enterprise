@@ -190,7 +190,7 @@ function MiddlewareDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Create middleware"}</Button>
+          <Button onClick={save} loading={saving}>{editing ? "Save changes" : "Create middleware"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
