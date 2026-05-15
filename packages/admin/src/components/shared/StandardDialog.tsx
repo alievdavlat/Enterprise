@@ -19,6 +19,16 @@ const SIZE_CLASSES: Record<StandardDialogSize, string> = {
   xl: "sm:max-w-4xl",
 };
 
+// Inline-style fallback in case Tailwind's responsive max-w-* class doesn't
+// land (Tailwind v4 dev-server scanning of design-system dist has been
+// flaky). Numbers match the Tailwind scale.
+const SIZE_REM: Record<StandardDialogSize, number> = {
+  sm: 28,
+  md: 32,
+  lg: 42,
+  xl: 56,
+};
+
 export interface StandardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -75,7 +85,9 @@ export function StandardDialog({
 }: StandardDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(SIZE_CLASSES[size], className)}>
+      <DialogContent
+        className={cn(SIZE_CLASSES[size], className)}
+        style={{ maxWidth: `min(calc(100vw - 2rem), ${SIZE_REM[size]}rem)` }}>
         {illustration && (
           <div
             className={cn(

@@ -55,6 +55,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  style,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
@@ -67,12 +68,16 @@ function DialogContent({
         className={cn(
           // Chrome + animation.
           "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-open:slide-in-from-bottom-3 data-closed:slide-out-to-bottom-2 ring-foreground/10 grid gap-4 rounded-xl p-4 text-sm ring-1 shadow-2xl shadow-black/20 duration-200 ease-out outline-none",
-          // Position + sizing. `max-w-[calc(100vw-2rem)]` keeps the dialog
-          // off the viewport edges on small screens; `sm:max-w-lg` (512px)
-          // is the default upper bound so dialogs don't span the screen.
-          "fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 max-w-[calc(100vw-2rem)] sm:max-w-lg",
+          // Position. Width handled via inline style below so the cap
+          // survives Tailwind v4 not picking up `sm:max-w-*` from dist
+          // files in a dev-server reload.
+          "fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2",
           className,
         )}
+        style={{
+          maxWidth: "min(calc(100vw - 2rem), 32rem)",
+          ...style,
+        }}
         {...props}>
         {children}
         {showCloseButton && (

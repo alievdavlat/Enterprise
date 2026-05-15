@@ -60,15 +60,19 @@ function AlertDialogContent({
         className={cn(
           // Animation + chrome.
           "data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-open:slide-in-from-bottom-3 data-closed:slide-out-to-bottom-2 bg-background ring-foreground/10 gap-4 rounded-xl p-4 ring-1 shadow-2xl shadow-black/20 duration-200 ease-out outline-none",
-          // Position + sizing. `max-w-[calc(100vw-2rem)]` keeps us off the
-          // viewport edges on small screens; `data-size` then caps at the
-          // requested size so the dialog never spans the full viewport.
-          "fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 max-w-[calc(100vw-2rem)]",
-          size === "sm" ? "sm:max-w-sm" : "sm:max-w-md",
+          // Position only — sizing handled by inline style so the cap
+          // survives Tailwind v4 missing `sm:max-w-*` from dist scans.
+          "fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2",
           // Layout group hook still used by AlertDialogHeader/Footer/Media.
           "group/alert-dialog-content",
           className,
         )}
+        style={{
+          maxWidth:
+            size === "sm"
+              ? "min(calc(100vw - 2rem), 24rem)"
+              : "min(calc(100vw - 2rem), 28rem)",
+        }}
         {...props}
       />
     </AlertDialogPortal>
