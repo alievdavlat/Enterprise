@@ -25,6 +25,7 @@ import { History, RotateCcw, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
+import { ListSkeleton } from "@/components/shared";
 
 type Version = {
   id: number;
@@ -157,11 +158,17 @@ export default function ContentHistoryPage() {
           </div>
 
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading…</div>
+            <ListSkeleton rows={4} card={false} className="p-4" />
           ) : list.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              No versions yet. History entries are written each time content is updated or
-              published once the lifecycle hook is enabled.
+            <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center mb-3">
+                <History className="w-7 h-7 text-muted-foreground/70" />
+              </div>
+              <p className="font-medium mb-1">No versions yet</p>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                History entries are written each time content is updated or
+                published once the lifecycle hook is enabled.
+              </p>
             </div>
           ) : (
             <TableRoot>

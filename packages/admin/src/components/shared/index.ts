@@ -34,6 +34,7 @@ export * from "./schema-builder/SchemaBuilderFieldsTable";
 // Shared components
 export * from "./data-table";
 export * from "./Loading";
+export * from "./ListSkeleton";
 export * from "./PluginCard";
 export * from "./MiddlewareCard";
 export * from "./ConfirmDialog";

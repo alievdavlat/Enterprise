@@ -27,6 +27,7 @@ import {
 import { Pencil, Plus, Trash2, Users as UsersIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { ListSkeleton } from "@/components/shared";
 
 type User = {
   id: number;
@@ -167,9 +168,17 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading…</div>
+            <ListSkeleton rows={4} card={false} className="p-2" />
           ) : list.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No users yet.</div>
+            <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center mb-3">
+                <UsersIcon className="w-7 h-7 text-muted-foreground/70" />
+              </div>
+              <p className="font-medium mb-1">No users yet</p>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Invite team members to manage content together.
+              </p>
+            </div>
           ) : (
             <TableRoot>
               <TableHeader>

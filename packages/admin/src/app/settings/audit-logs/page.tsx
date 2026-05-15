@@ -14,6 +14,7 @@ import {
   TableCell,
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
+import { ListSkeleton } from "@/components/shared";
 
 type AuditLogRow = {
   id: number;
@@ -63,9 +64,7 @@ export default function AuditLogsPage() {
       </div>
 
       {loading ? (
-        <Card className="border-border/50">
-          <CardContent className="p-8 text-center text-muted-foreground">Loading…</CardContent>
-        </Card>
+        <ListSkeleton rows={5} />
       ) : list.length === 0 ? (
         <Card className="border-border/50">
           <CardContent className="flex flex-col items-center justify-center py-16 px-6">

@@ -7,6 +7,7 @@ import {
   ApiTokensEmptyState,
   ApiTokensTable,
 } from "@/components/shared/settings";
+import { ListSkeleton } from "@/components/shared";
 import {
   useApiTokens,
   useCreateApiToken,
@@ -152,11 +153,7 @@ export function ApiTokensView() {
       <ApiTokensHeader onCreateClick={openCreate} />
 
       {isLoading ? (
-        <Card className="border-border/50">
-          <CardContent className="p-8 text-center text-muted-foreground">
-            Loading…
-          </CardContent>
-        </Card>
+        <ListSkeleton rows={4} />
       ) : tokens.length === 0 ? (
         <ApiTokensEmptyState onCreateClick={openCreate} />
       ) : (

@@ -24,6 +24,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { ListSkeleton } from "@/components/shared";
 
 type TransferTokenRow = {
   id: number;
@@ -167,9 +168,7 @@ export default function TransferTokensPage() {
       </div>
 
       {loading ? (
-        <Card className="border-border/50">
-          <CardContent className="p-8 text-center text-muted-foreground">Loading…</CardContent>
-        </Card>
+        <ListSkeleton rows={3} />
       ) : list.length === 0 ? (
         <Card className="border-border/50">
           <CardContent className="flex flex-col items-center justify-center py-16 px-6">
