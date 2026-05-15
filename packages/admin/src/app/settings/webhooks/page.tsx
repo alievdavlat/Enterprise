@@ -25,7 +25,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton, PageHeader, EmptyCard } from "@/components/shared";
+import { ListSkeleton, PageHeader, EmptyCard, StandardDialog } from "@/components/shared";
 import { IllustrationCode } from "@/components/illustrations";
 
 type WebhookRow = {
@@ -172,65 +172,60 @@ export default function WebhooksPage() {
           </Button>
         }
       />
-      <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editing ? "Edit webhook" : "Create webhook"}
-              </DialogTitle>
-              <DialogDescription>
-                Configure URL, headers and events.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  placeholder="My webhook"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>URL</Label>
-                <Input
-                  value={form.url}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, url: e.target.value }))
-                  }
-                  placeholder="https://example.com/hook"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Headers (JSON)</Label>
-                <Input
-                  value={form.headers}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, headers: e.target.value }))
-                  }
-                  placeholder='{"X-Custom": "value"}'
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={form.enabled}
-                  onCheckedChange={(v) =>
-                    setForm((f) => ({ ...f, enabled: v }))
-                  }
-                />
-                <Label>Enabled</Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={save}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <StandardDialog
+        open={open}
+        onOpenChange={setOpen}
+        illustration={<IllustrationCode size={120} />}
+        title={editing ? "Edit webhook" : "Create webhook"}
+        description="Configure URL, headers and events."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={save}>Save</Button>
+          </>
+        }>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Name</Label>
+            <Input
+              value={form.name}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, name: e.target.value }))
+              }
+              placeholder="My webhook"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>URL</Label>
+            <Input
+              value={form.url}
+              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+              placeholder="https://example.com/hook"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Headers (JSON)</Label>
+            <Input
+              value={form.headers}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, headers: e.target.value }))
+              }
+              placeholder='{"X-Custom": "value"}'
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={form.enabled}
+              onCheckedChange={(v) =>
+                setForm((f) => ({ ...f, enabled: v }))
+              }
+            />
+            <Label>Enabled</Label>
+          </div>
+        </div>
+      </StandardDialog>
 
       {loading ? (
         <ListSkeleton rows={4} />

@@ -24,7 +24,8 @@ import {
   Textarea,
 } from "@enterprise/design-system";
 import { KeyRound, Github, ExternalLink, Plus } from "lucide-react";
-import { PageHeader, ListSkeleton } from "@/components/shared";
+import { PageHeader, ListSkeleton, StandardDialog } from "@/components/shared";
+import { IllustrationKey } from "@/components/illustrations";
 
 interface Preset {
   name: string;
@@ -199,15 +200,24 @@ function CustomProviderDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Add custom OAuth provider</DialogTitle>
-          <DialogDescription>
-            Wire up any OAuth 2.0 IdP — give it a name, the three IdP URLs, and a field mapping for the user-info response.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 sm:grid-cols-2">
+    <StandardDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      illustration={<IllustrationKey size={120} />}
+      title="Add custom OAuth provider"
+      description="Wire up any OAuth 2.0 IdP — give it a name, the three IdP URLs, and a field mapping for the user-info response."
+      size="xl"
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={save} loading={saving}>
+            Add provider
+          </Button>
+        </>
+      }>
+      <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Name (slug)</Label>
             <Input value={name} onChange={(e) => setName(e.target.value.replace(/[^a-z0-9_-]/gi, "").toLowerCase())} placeholder="acme-sso" />
@@ -248,12 +258,7 @@ function CustomProviderDialog({
             </p>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} loading={saving}>Add provider</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </StandardDialog>
   );
 }
 

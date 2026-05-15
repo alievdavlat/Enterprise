@@ -11,7 +11,8 @@ import { Database, Play, Undo2, Plus, CheckCircle2, Clock } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { EmptyState, PanelLoadingSkeleton } from "@/components/builder/shared";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, StandardDialog } from "@/components/shared";
+import { IllustrationDatabase } from "@/components/illustrations";
 
 interface MigrationRow {
   name: string;
@@ -170,30 +171,31 @@ export default function MigrationsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create migration</DialogTitle>
-            <DialogDescription>
-              Drops a timestamped <code>.ts</code> file in <code>database/migrations/</code> with empty <code>up()</code> + <code>down()</code> stubs.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="mig-name">Name</Label>
-            <Input
-              id="mig-name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="add-slug-to-articles"
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+      <StandardDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        illustration={<IllustrationDatabase size={120} />}
+        title="Create migration"
+        description="Drops a timestamped .ts file in database/migrations/ with empty up() + down() stubs."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={create}>Create file</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }>
+        <div className="space-y-2">
+          <Label htmlFor="mig-name">Name</Label>
+          <Input
+            id="mig-name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="add-slug-to-articles"
+            autoFocus
+          />
+        </div>
+      </StandardDialog>
     </div>
   );
 }

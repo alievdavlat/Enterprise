@@ -24,8 +24,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "@enterprise/design-system";
-import { PageHeader, ListSkeleton, EmptyCard } from "@/components/shared";
-import { IllustrationNoData } from "@/components/illustrations";
+import { PageHeader, ListSkeleton, EmptyCard, StandardDialog } from "@/components/shared";
+import { IllustrationNoData, IllustrationCreate } from "@/components/illustrations";
 
 type Locale = {
   id: number;
@@ -110,52 +110,52 @@ export default function InternationalizationPage() {
           </Button>
         }
       />
-      <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editing ? "Edit locale" : "Add locale"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>Code</Label>
-                <Input
-                  value={form.code}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, code: e.target.value }))
-                  }
-                  placeholder="en"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  placeholder="English"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={form.isDefault}
-                  onCheckedChange={(v) =>
-                    setForm((f) => ({ ...f, isDefault: v }))
-                  }
-                />
-                <Label>Default locale</Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={save}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <StandardDialog
+        open={open}
+        onOpenChange={setOpen}
+        illustration={<IllustrationCreate size={120} />}
+        title={editing ? "Edit locale" : "Add locale"}
+        description="Locales let you translate content into additional languages."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={save}>Save</Button>
+          </>
+        }>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Code</Label>
+            <Input
+              value={form.code}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, code: e.target.value }))
+              }
+              placeholder="en"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Name</Label>
+            <Input
+              value={form.name}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, name: e.target.value }))
+              }
+              placeholder="English"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={form.isDefault}
+              onCheckedChange={(v) =>
+                setForm((f) => ({ ...f, isDefault: v }))
+              }
+            />
+            <Label>Default locale</Label>
+          </div>
+        </div>
+      </StandardDialog>
       {loading ? (
         <ListSkeleton rows={4} />
       ) : list.length === 0 ? (

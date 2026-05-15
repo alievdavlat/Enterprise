@@ -29,7 +29,8 @@ import { Plus, Save, Shield, Users as UsersIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
-import { PageHeader, ListSkeleton } from "@/components/shared";
+import { PageHeader, ListSkeleton, StandardDialog } from "@/components/shared";
+import { IllustrationKey } from "@/components/illustrations";
 
 type Role = { id: number; name: string; description?: string };
 type Permission = {
@@ -309,41 +310,44 @@ export default function RolesPage() {
         </Card>
       </div>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New role</DialogTitle>
-            <DialogDescription>Create a new admin role.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid gap-2">
-              <Label>Name</Label>
-              <Input
-                value={newRole.name}
-                onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
-                placeholder="Editor"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Description</Label>
-              <Textarea
-                value={newRole.description}
-                onChange={(e) =>
-                  setNewRole({ ...newRole, description: e.target.value })
-                }
-                placeholder="What can this role do?"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
+      <StandardDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        illustration={<IllustrationKey size={120} />}
+        title="New role"
+        description="Create a new admin role with custom permissions."
+        footer={
+          <>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
             <Button onClick={createRole}>Create</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Name</Label>
+            <Input
+              value={newRole.name}
+              onChange={(e) =>
+                setNewRole({ ...newRole, name: e.target.value })
+              }
+              placeholder="Editor"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Description</Label>
+            <Textarea
+              value={newRole.description}
+              onChange={(e) =>
+                setNewRole({ ...newRole, description: e.target.value })
+              }
+              placeholder="What can this role do?"
+              rows={3}
+            />
+          </div>
+        </div>
+      </StandardDialog>
     </div>
   );
 }

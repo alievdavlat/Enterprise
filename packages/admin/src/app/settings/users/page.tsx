@@ -27,7 +27,8 @@ import {
 import { Pencil, Plus, Trash2, Users as UsersIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton, PageHeader } from "@/components/shared";
+import { ListSkeleton, PageHeader, StandardDialog } from "@/components/shared";
+import { IllustrationCreate, IllustrationDocument } from "@/components/illustrations";
 
 type User = {
   id: number;
@@ -242,45 +243,128 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invite user</DialogTitle>
-            <DialogDescription>
-              Create an admin user with a default password.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
+      <StandardDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        illustration={<IllustrationCreate size={120} />}
+        title="Invite user"
+        description="Create an admin user with a default password."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={create} loading={saving}>
+              Create
+            </Button>
+          </>
+        }>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={draft.email}
+              onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+              placeholder="user@example.com"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Username</Label>
+            <Input
+              value={draft.username}
+              onChange={(e) => setDraft({ ...draft, username: e.target.value })}
+              placeholder="(defaults to email prefix)"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>First name</Label>
+              <Input
+                value={draft.firstName}
+                onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Last name</Label>
+              <Input
+                value={draft.lastName}
+                onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Role</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={draft.role}
+              onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
+              {roleOptions.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </StandardDialog>
+
+      <StandardDialog
+        open={!!editing}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+        illustration={<IllustrationDocument size={120} />}
+        title="Edit user"
+        description="Update user details and role."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} loading={saving}>
+              Save
+            </Button>
+          </>
+        }>
+        {editing && (
+          <div className="grid gap-4">
             <div className="grid gap-2">
               <Label>Email</Label>
               <Input
                 type="email"
-                value={draft.email}
-                onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                placeholder="user@example.com"
+                value={editing.email}
+                onChange={(e) =>
+                  setEditing({ ...editing, email: e.target.value })
+                }
               />
             </div>
             <div className="grid gap-2">
               <Label>Username</Label>
               <Input
-                value={draft.username}
-                onChange={(e) => setDraft({ ...draft, username: e.target.value })}
-                placeholder="(defaults to email prefix)"
+                value={editing.username}
+                onChange={(e) =>
+                  setEditing({ ...editing, username: e.target.value })
+                }
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label>First name</Label>
                 <Input
-                  value={draft.firstName}
-                  onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
+                  value={editing.firstName ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, firstName: e.target.value })
+                  }
                 />
               </div>
               <div className="grid gap-2">
                 <Label>Last name</Label>
                 <Input
-                  value={draft.lastName}
-                  onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
+                  value={editing.lastName ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, lastName: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -288,9 +372,10 @@ export default function UsersPage() {
               <Label>Role</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={draft.role}
-                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
-              >
+                value={editing.role}
+                onChange={(e) =>
+                  setEditing({ ...editing, role: e.target.value })
+                }>
                 {roleOptions.map((r) => (
                   <option key={r} value={r}>
                     {r}
@@ -298,95 +383,23 @@ export default function UsersPage() {
                 ))}
               </select>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={create} disabled={saving}>
-              {saving ? "Creating…" : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit user</DialogTitle>
-            <DialogDescription>Update user details and role.</DialogDescription>
-          </DialogHeader>
-          {editing && (
-            <div className="grid gap-4 py-2">
-              <div className="grid gap-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={editing.email}
-                  onChange={(e) => setEditing({ ...editing, email: e.target.value })}
-                />
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Active</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Inactive users cannot sign in.
+                </p>
               </div>
-              <div className="grid gap-2">
-                <Label>Username</Label>
-                <Input
-                  value={editing.username}
-                  onChange={(e) => setEditing({ ...editing, username: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <Label>First name</Label>
-                  <Input
-                    value={editing.firstName ?? ""}
-                    onChange={(e) => setEditing({ ...editing, firstName: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Last name</Label>
-                  <Input
-                    value={editing.lastName ?? ""}
-                    onChange={(e) => setEditing({ ...editing, lastName: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Role</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={editing.role}
-                  onChange={(e) => setEditing({ ...editing, role: e.target.value })}
-                >
-                  {roleOptions.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Active</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Inactive users cannot sign in.
-                  </p>
-                </div>
-                <Switch
-                  checked={editing.isActive}
-                  onCheckedChange={(v) => setEditing({ ...editing, isActive: v })}
-                />
-              </div>
+              <Switch
+                checked={editing.isActive}
+                onCheckedChange={(v) =>
+                  setEditing({ ...editing, isActive: v })
+                }
+              />
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>
-              Cancel
-            </Button>
-            <Button onClick={saveEdit} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </StandardDialog>
     </div>
   );
 }

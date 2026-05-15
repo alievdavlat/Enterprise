@@ -24,8 +24,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton, PageHeader, EmptyCard } from "@/components/shared";
-import { IllustrationKey } from "@/components/illustrations";
+import { ListSkeleton, PageHeader, EmptyCard, StandardDialog } from "@/components/shared";
+import { IllustrationKey, IllustrationSuccess } from "@/components/illustrations";
 
 type TransferTokenRow = {
   id: number;
@@ -115,59 +115,79 @@ export default function TransferTokensPage() {
           </Button>
         }
       />
-      <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Transfer Token</DialogTitle>
-              <DialogDescription>
-                {createdToken
-                  ? "Copy the token below. You won't be able to see it again."
-                  : "Create a new transfer token for CLI or external tools."}
-              </DialogDescription>
-            </DialogHeader>
-            {createdToken ? (
-              <div className="space-y-4 py-4">
-                <div className="grid gap-2">
-                  <Label>Token (copy now)</Label>
-                  <div className="flex gap-2">
-                    <Input readOnly value={createdToken} className="font-mono" />
-                    <Button size="icon" variant="outline" onClick={copyToken}>
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={() => { setOpen(false); setCreatedToken(null); }}>Done</Button>
-                </DialogFooter>
-              </div>
-            ) : (
-              <>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label>Name</Label>
-                    <Input
-                      value={form.name}
-                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                      placeholder="My transfer token"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Description (optional)</Label>
-                    <Input
-                      value={form.description}
-                      onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                      placeholder="For CLI sync"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button onClick={create}>Create</Button>
-                </DialogFooter>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
+      <StandardDialog
+        open={open}
+        onOpenChange={setOpen}
+        illustration={
+          createdToken ? (
+            <IllustrationSuccess size={120} />
+          ) : (
+            <IllustrationKey size={120} />
+          )
+        }
+        title={createdToken ? "Token created" : "Create Transfer Token"}
+        description={
+          createdToken
+            ? "Copy the token below. You won't be able to see it again."
+            : "Create a new transfer token for CLI or external tools."
+        }
+        footer={
+          createdToken ? (
+            <Button
+              onClick={() => {
+                setOpen(false);
+                setCreatedToken(null);
+              }}>
+              Done
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={create}>Create</Button>
+            </>
+          )
+        }>
+        {createdToken ? (
+          <div className="grid gap-2">
+            <Label>Token (copy now)</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={createdToken} className="font-mono" />
+              <Button size="icon" variant="outline" onClick={copyToken}>
+                {copied ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="My transfer token"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Description (optional)</Label>
+              <Input
+                value={form.description}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
+                placeholder="For CLI sync"
+              />
+            </div>
+          </div>
+        )}
+      </StandardDialog>
 
       {loading ? (
         <ListSkeleton rows={3} />
