@@ -3,6 +3,9 @@ export * from "./data-manager/DataManagerHeader";
 export * from "./data-manager/ModelContent";
 export * from "./data-manager/DeleteEntryDialog";
 export * from "./data-manager/EditEntryHeader";
+export * from "./data-manager/EntryBreadcrumbs";
+export * from "./data-manager/EntryStickyBar";
+export * from "./data-manager/UnsavedChangesDialog";
 
 // Media
 export * from "./media/MediaHeader";
