@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@enterprise/design-system";
+import { Button } from "@enterprise/design-system";
+import { StandardDialog } from "@/components/shared/StandardDialog";
+import { IllustrationDelete } from "@/components/illustrations";
 
 export interface DeleteEntryDialogProps {
   open: boolean;
@@ -24,32 +18,29 @@ export const DeleteEntryDialog = ({
   loading = false,
 }: DeleteEntryDialogProps) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete entry</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete this entry? This action cannot be
-            undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
+    <StandardDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      tone="rose"
+      illustration={<IllustrationDelete size={120} />}
+      title="Delete entry"
+      description="Are you sure you want to delete this entry? This action cannot be undone."
+      footer={
+        <>
           <Button
             variant="outline"
-            className="cursor-pointer"
             disabled={loading}
             onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             variant="default"
-            className="cursor-pointer"
             loading={loading}
             onClick={onConfirm}>
             Delete
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    />
   );
 };

@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@enterprise/design-system";
+import { Button } from "@enterprise/design-system";
+import { StandardDialog } from "@/components/shared/StandardDialog";
+import { IllustrationWarning } from "@/components/illustrations";
 
 export interface UnsavedChangesDialogProps {
   open: boolean;
@@ -23,24 +16,26 @@ export const UnsavedChangesDialog = ({
   onDiscard,
 }: UnsavedChangesDialogProps) => {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
-          <AlertDialogDescription>
-            You have unsaved changes on this entry. If you leave now, your edits
-            will be lost.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep editing</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onDiscard}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+    <StandardDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      tone="amber"
+      illustration={<IllustrationWarning size={120} />}
+      title="Discard unsaved changes?"
+      description="You have unsaved changes on this entry. If you leave now, your edits will be lost."
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Keep editing
+          </Button>
+          <Button
+            variant="default"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={onDiscard}>
             Discard changes
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </>
+      }
+    />
   );
 };
