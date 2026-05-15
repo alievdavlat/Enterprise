@@ -4,7 +4,6 @@ import {
   Button,
   Input,
   Label,
-  Modal,
   ScrollArea,
   Switch,
   Select,
@@ -15,6 +14,8 @@ import {
 } from "@enterprise/design-system";
 import { GripVertical, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import type { ContentTypeSchema } from "@/types";
+import { StandardDialog } from "@/components/shared/StandardDialog";
+import { IllustrationDatabase } from "@/components/illustrations";
 
 export interface SchemaBuilderConfigDialogProps {
   open: boolean;
@@ -47,23 +48,23 @@ export function SchemaBuilderConfigDialog({
   if (!selectedCt) return null;
 
   return (
-    <Modal
+    <StandardDialog
       open={open}
-      onClose={() => onOpenChange(false)}
+      onOpenChange={onOpenChange}
+      illustration={<IllustrationDatabase size={120} />}
       title={`Customize layout — ${selectedCt.displayName}`}
+      description="Customize how the edit view will look like."
+      size="xl"
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={onSave}>Save</Button>
         </>
       }>
-      <div className="sm:max-w-[720px] max-h-[90vh] overflow-hidden flex flex-col gap-4">
-        <p className="text-sm text-muted-foreground -mt-2 mb-2">
-          Customize how the edit view will look like.
-        </p>
-        <ScrollArea className="shrink-0 h-[calc(90vh-14rem)] min-h-[240px] w-full rounded-md border border-border/50">
+      <div className="max-h-[70vh] overflow-hidden flex flex-col gap-4">
+        <ScrollArea className="shrink-0 h-[60vh] min-h-[240px] w-full rounded-md border border-border/50">
           <div className="grid gap-6 py-4 pr-4">
             <div className="space-y-3">
               <h4 className="text-sm font-semibold">Settings</h4>
@@ -258,6 +259,6 @@ export function SchemaBuilderConfigDialog({
           </div>
         </ScrollArea>
       </div>
-    </Modal>
+    </StandardDialog>
   );
 }
