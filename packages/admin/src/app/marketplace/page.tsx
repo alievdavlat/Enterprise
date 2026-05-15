@@ -42,6 +42,7 @@ import {
 import { api } from "@/lib/api";
 import { PLUGINS, MIDDLEWARES } from "@/consts/plugin-middleware.const";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/shared";
 
 type Plugin = typeof PLUGINS[number];
 type Middleware = typeof MIDDLEWARES[number];
@@ -98,49 +99,41 @@ export default function MarketplacePage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground p-3 rounded-2xl shadow-lg">
-            <Layers className="w-7 h-7" />
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Blocks}
+        title="Plugins & Tools"
+        description="Manage plugins, middlewares, extensions, scheduled jobs and lifecycle hooks — all in one place."
+        variant="primary"
+        actions={
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="pl-9 w-full sm:w-72"
+              />
+            </div>
+            <div className="flex gap-1 bg-muted/40 p-1 rounded-md">
+              {(["all", "enabled", "disabled"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={cn(
+                    "text-xs px-3 py-1.5 rounded transition-colors capitalize font-medium",
+                    filter === f
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}>
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Plugins &amp; Tools</h1>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              Manage plugins, middlewares, extensions, scheduled jobs and lifecycle hooks — all in one place
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search…"
-              className="pl-9 w-full sm:w-72"
-            />
-          </div>
-          <div className="flex gap-1 bg-muted/40 p-1 rounded-md">
-            {(["all", "enabled", "disabled"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={cn(
-                  "text-xs px-3 py-1.5 rounded transition-colors capitalize font-medium",
-                  filter === f
-                    ? "bg-background shadow-sm text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={onTabChange} className="w-full">

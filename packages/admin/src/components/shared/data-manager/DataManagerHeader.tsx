@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { Button } from "@enterprise/design-system";
-import { Plus } from "lucide-react";
+import { Plus, Database } from "lucide-react";
 import type { ContentTypeSchema } from "@/types";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export interface DataManagerHeaderProps {
   contentType: ContentTypeSchema;
@@ -15,22 +16,22 @@ export const DataManagerHeader = ({
   model,
 }: DataManagerHeaderProps) => {
   return (
-    <div className="flex items-center justify-between mb-8 animate-in slide-in-from-top-4 fade-in duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {contentType.displayName}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm bg-muted/50 inline-block px-2.5 py-1 rounded-full font-mono text-xs">
-          {contentType.uid} • {contentType.kind}
-        </p>
-      </div>
-      {contentType.kind !== "singleType" && (
-        <Link href={`/data-manager/${model}/new`}>
-          <Button className="gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-            <Plus className="w-4 h-4" /> Create new entry
-          </Button>
-        </Link>
-      )}
-    </div>
+    <PageHeader
+      icon={Database}
+      eyebrow="Content Manager"
+      title={contentType.displayName}
+      description={`${contentType.uid} · ${contentType.kind}`}
+      variant="primary"
+      actions={
+        contentType.kind !== "singleType" ? (
+          <Link href={`/data-manager/${model}/new`}>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" /> Create new entry
+            </Button>
+          </Link>
+        ) : undefined
+      }
+      className="mb-2"
+    />
   );
 };

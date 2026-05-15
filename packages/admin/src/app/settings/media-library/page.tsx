@@ -14,6 +14,8 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "@enterprise/design-system";
+import { Image as ImageIcon } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 
 const STORE_KEY = "admin::media-library";
 
@@ -74,18 +76,19 @@ export default function MediaLibrarySettingsPage() {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Media Library</h1>
-          <p className="text-muted-foreground mt-1">
-            Configure the settings for the Media Library
-          </p>
-        </div>
-        <Button onClick={save} loading={saving}>
-          Save
-        </Button>
-      </div>
+    <div className="p-8 space-y-8">
+      <PageHeader
+        icon={ImageIcon}
+        eyebrow="Settings"
+        title="Media Library"
+        description="Configure the settings for the Media Library."
+        variant="rose"
+        actions={
+          <Button onClick={save} loading={saving}>
+            Save
+          </Button>
+        }
+      />
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-base">Asset management</CardTitle>

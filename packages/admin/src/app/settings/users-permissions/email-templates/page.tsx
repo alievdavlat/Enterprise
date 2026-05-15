@@ -43,6 +43,7 @@ import {
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 
 type BodyMode = "html" | "markdown" | "plain";
 
@@ -295,32 +296,32 @@ export default function EmailTemplatesPage() {
   // ──── LIST VIEW ────
   return (
     <>
-      <div className="p-8 space-y-6 animate-in fade-in duration-300">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20">
-              <FileText className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Email templates</h1>
-              <p className="text-muted-foreground mt-0.5 text-sm">
-                Customize the emails sent by Users &amp; Permissions and other plugins
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {list.length === 0 && !loading && (
-              <Button variant="outline" onClick={seedDefaults} disabled={seeding} className="gap-2">
-                <Sparkles className="w-4 h-4" />
-                Seed defaults
+      <div className="p-8 space-y-6">
+        <PageHeader
+          icon={FileText}
+          eyebrow="Settings"
+          title="Email templates"
+          description="Customize the emails sent by Users & Permissions and other plugins."
+          variant="blue"
+          actions={
+            <>
+              {list.length === 0 && !loading && (
+                <Button
+                  variant="outline"
+                  onClick={seedDefaults}
+                  disabled={seeding}
+                  className="gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Seed defaults
+                </Button>
+              )}
+              <Button onClick={openCreate} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Add template
               </Button>
-            )}
-            <Button onClick={openCreate} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add template
-            </Button>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <Card className="border-border/50">
           <CardHeader>
@@ -333,7 +334,7 @@ export default function EmailTemplatesPage() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading…</div>
+              <ListSkeleton rows={4} card={false} className="p-4" />
             ) : list.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 No templates yet. Use "Seed defaults" to create the standard ones.

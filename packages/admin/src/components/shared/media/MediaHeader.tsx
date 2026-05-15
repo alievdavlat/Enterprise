@@ -6,9 +6,10 @@ import {
   FolderPlus,
   Upload,
   Smartphone,
-  Sparkles,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/shared/PageHeader";
 import type { MediaViewMode } from "./MediaAssetsSection";
 
 interface MediaHeaderProps {
@@ -44,60 +45,59 @@ export const MediaHeader = ({
   uploading,
 }: MediaHeaderProps) => {
   return (
-    <div className="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Asset Gallery</h1>
-        <p className="text-muted-foreground mt-1 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          Upload and manage your media assets
-        </p>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex rounded-md border border-input bg-muted/30 p-0.5">
-          {VIEW_OPTIONS.map(({ value, icon: Icon, title, iconTint }) => (
-            <Button
-              key={value}
-              variant={viewMode === value ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setViewMode(value)}
-              title={title}>
-              <Icon className={cn("w-4 h-4", iconTint)} />
-            </Button>
-          ))}
+    <PageHeader
+      icon={ImageIcon}
+      title="Asset Gallery"
+      description="Upload and manage your media assets."
+      variant="rose"
+      actions={
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex rounded-md border border-input bg-muted/30 p-0.5">
+            {VIEW_OPTIONS.map(({ value, icon: Icon, title, iconTint }) => (
+              <Button
+                key={value}
+                variant={viewMode === value ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setViewMode(value)}
+                title={title}>
+                <Icon className={cn("w-4 h-4", iconTint)} />
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setConfigOpen(true)}>
+            <Settings className="w-4 h-4 text-amber-500" />
+            Configure view
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            accept="image/*,video/*,application/pdf,text/plain,text/csv,application/json"
+            onChange={onFileSelect}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setAddFolderOpen(true)}>
+            <FolderPlus className="w-4 h-4 text-cyan-500" />
+            Add new folder
+          </Button>
+          <Button
+            disabled={uploading}
+            onClick={() => setAddAssetOpen(true)}
+            className="gap-2">
+            <Upload className="w-4 h-4" />
+            {uploading ? "Uploading…" : "Add new assets"}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => setConfigOpen(true)}>
-          <Settings className="w-4 h-4 text-amber-500" />
-          Configure view
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          accept="image/*,video/*,application/pdf,text/plain,text/csv,application/json"
-          onChange={onFileSelect}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => setAddFolderOpen(true)}>
-          <FolderPlus className="w-4 h-4 text-cyan-500" />
-          Add new folder
-        </Button>
-        <Button
-          disabled={uploading}
-          onClick={() => setAddAssetOpen(true)}
-          className="gap-2">
-          <Upload className="w-4 h-4" />
-          {uploading ? "Uploading…" : "Add new assets"}
-        </Button>
-      </div>
-    </div>
+      }
+    />
   );
 };

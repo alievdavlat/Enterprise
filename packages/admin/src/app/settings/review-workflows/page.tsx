@@ -18,6 +18,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 
 type Stage = { id?: number; name: string; order: number };
 type Workflow = {
@@ -134,19 +135,21 @@ export default function ReviewWorkflowsPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Review Workflows</h1>
-          <p className="text-muted-foreground mt-1">Define stages for content review</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={openCreate}>
-              <Plus className="w-4 h-4" />
-              Create workflow
-            </Button>
-          </DialogTrigger>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Zap}
+        eyebrow="Settings"
+        title="Review Workflows"
+        description="Define stages for content review."
+        variant="amber"
+        actions={
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus className="w-4 h-4" />
+            Create workflow
+          </Button>
+        }
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit workflow" : "Create workflow"}</DialogTitle>
@@ -206,12 +209,9 @@ export default function ReviewWorkflowsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
       {loading ? (
-        <Card className="border-border/50">
-          <CardContent className="p-8 text-center text-muted-foreground">Loading…</CardContent>
-        </Card>
+        <ListSkeleton rows={3} />
       ) : list.length === 0 ? (
         <Card className="border-border/50">
           <CardContent className="flex flex-col items-center justify-center py-16 px-6">

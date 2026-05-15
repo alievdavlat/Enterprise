@@ -1,9 +1,11 @@
 "use client";
 
 import { Button } from "@enterprise/design-system";
-import { ArrowLeft, Plus, Settings, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Settings, Trash2, Database } from "lucide-react";
 import type { ContentTypeSchema } from "@/types";
 import type { SchemaWithViewConfig } from "@/types/schema-builder";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { cn } from "@/lib/utils";
 
 export interface SchemaBuilderHeaderProps {
   selectedCt: ContentTypeSchema | null;
@@ -40,25 +42,37 @@ export function SchemaBuilderHeader({
           ? "bg-blue-500/10 text-blue-600"
           : "bg-emerald-500/10 text-emerald-600";
 
+  const variant: "primary" | "violet" | "blue" | "emerald" | "amber" =
+    selectedCt.kind === "component"
+      ? "amber"
+      : selectedCt.kind === "dynamiczone"
+        ? "violet"
+        : selectedCt.kind === "singleType"
+          ? "blue"
+          : "emerald";
+
   const category = (selectedCt as { category?: string }).category;
 
   return (
     <div className="bg-card border-b border-border px-8 py-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1 text-sm text-primary hover:underline mb-3"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back
-          </button>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {selectedCt.displayName}
-            </h1>
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-sm text-primary hover:underline mb-3">
+        <ArrowLeft className="w-3.5 h-3.5" /> Back
+      </button>
+      <PageHeader
+        icon={Database}
+        eyebrow="Schema Builder"
+        title={selectedCt.displayName}
+        description="Build the data architecture of your content."
+        variant={variant}
+        toolbar={
+          <div className="flex items-center gap-2">
             <span
-              className={`text-[11px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full ${kindClass}`}
-            >
+              className={cn(
+                "text-[11px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full",
+                kindClass,
+              )}>
               {kindLabel}
             </span>
             {category && (
@@ -66,36 +80,34 @@ export function SchemaBuilderHeader({
                 {category}
               </span>
             )}
+            {(selectedCt.kind === "collectionType" ||
+              selectedCt.kind === "singleType") && (
+              <button
+                onClick={() =>
+                  onCustomizeLayout(selectedCt as SchemaWithViewConfig)
+                }
+                className="ml-auto flex items-center gap-1 text-sm text-primary hover:underline">
+                <Settings className="w-3.5 h-3.5" /> Customize layout
+              </button>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Build the data architecture of your content
-          </p>
-        </div>
-        <div className="flex items-center gap-2 pt-6">
-          <Button variant="outline" className="gap-2" onClick={onAddField}>
-            <Plus className="w-4 h-4" /> Add field
-          </Button>
-          <Button
-            variant="destructive"
-            size="icon"
-            className="shrink-0"
-            onClick={() => onDelete(selectedCt)}
-            title="Delete schema"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-      {(selectedCt.kind === "collectionType" || selectedCt.kind === "singleType") && (
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={() => onCustomizeLayout(selectedCt as SchemaWithViewConfig)}
-            className="flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            <Settings className="w-3.5 h-3.5" /> Customize layout
-          </button>
-        </div>
-      )}
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2" onClick={onAddField}>
+              <Plus className="w-4 h-4" /> Add field
+            </Button>
+            <Button
+              variant="destructive"
+              size="icon"
+              className="shrink-0"
+              onClick={() => onDelete(selectedCt)}
+              title="Delete schema">
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        }
+      />
     </div>
   );
 }

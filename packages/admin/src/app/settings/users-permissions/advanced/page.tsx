@@ -21,6 +21,7 @@ import {
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
+import { PageHeader } from "@/components/shared";
 import {
   AUTH_TEMPLATES,
   DEFAULT_AUTH_TEMPLATE,
@@ -129,22 +130,14 @@ export default function AdvancedSettingsPage() {
       : ["public", "authenticated", "admin", "superAdmin"];
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20">
-            <Wrench className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Advanced settings
-            </h1>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              Users &amp; Permissions, registration policies and UI customization
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Wrench}
+        eyebrow="Settings"
+        title="Advanced settings"
+        description="Users & Permissions, registration policies and UI customization."
+        variant="primary"
+      />
 
       <Tabs defaultValue="auth" className="space-y-6">
         <TabsList className="bg-muted/40 p-1 rounded-xl">
