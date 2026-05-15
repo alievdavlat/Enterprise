@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
 import {
   Input,
+  PasswordInput,
   Label,
-  Switch,
   Button,
   Select,
   SelectContent,
@@ -39,12 +38,8 @@ import {
   GripVertical,
 } from "lucide-react";
 import { TiptapEditor } from "./TiptapEditor";
-
-const JsonCodeEditor = dynamic(
-  () => import("@uiw/react-codemirror").then((m) => m.default),
-  { ssr: false },
-);
-import { json as jsonLang } from "@codemirror/lang-json";
+import { JsonField } from "./JsonField";
+import { BooleanField } from "./BooleanField";
 
 interface FieldRendererProps {
   field: string;
@@ -400,17 +395,28 @@ function RelationFieldRenderer({
         setOptions(
           list.map((row) => {
             const id = row.id as number;
+            // Prefer a human-readable title/name/slug. When none exists,
+            // fall back to "<DisplayName> #<id>" so the chip reads as
+            // "Order #43" instead of a bare "43" — the user can't tell
+            // what entity that number refers to otherwise.
+            const titleField =
+              (row as Record<string, unknown>).title ??
+              (row as Record<string, unknown>).name ??
+              (row as Record<string, unknown>).displayName ??
+              (row as Record<string, unknown>).slug ??
+              (row as Record<string, unknown>).label ??
+              (row as Record<string, unknown>).subject;
             const label =
-              String(
-                row.title ?? row.name ?? row.displayName ?? row.id ?? id,
-              ) || `#${id}`;
+              titleField != null && String(titleField).trim() !== ""
+                ? String(titleField)
+                : `${targetSchema.displayName} #${id}`;
             return { id, label };
           }),
         );
       })
       .catch(() => setOptions([]))
       .finally(() => setLoading(false));
-  }, [targetSchema?.uid]);
+  }, [targetSchema?.uid, targetSchema?.displayName]);
 
   if (!targetSchema) {
     return (
@@ -1257,7 +1263,11 @@ export function FieldRenderer({
       </Label>
 
       {config.type === "boolean" ? (
-        <Switch checked={!!val} onCheckedChange={set} />
+        <BooleanField
+          value={val}
+          onChange={set}
+          nullable={config.required !== true}
+        />
       ) : config.type === "richtext" ? (
         <TiptapEditor
           value={typeof val === "string" ? val : ""}
@@ -1286,30 +1296,7 @@ export function FieldRenderer({
           onChange={set}
         />
       ) : config.type === "json" ? (
-        <div className="rounded-lg border border-input bg-background/60 text-xs font-mono overflow-hidden">
-          <JsonCodeEditor
-            value={
-              typeof val === "object"
-                ? JSON.stringify(val, null, 2)
-                : String(val ?? "")
-            }
-            height="180px"
-            theme="dark"
-            extensions={[jsonLang()]}
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLine: true,
-            }}
-            onChange={(code) => {
-              try {
-                set(JSON.parse(code));
-              } catch {
-                set(code);
-              }
-            }}
-            className="cm-theme-json"
-          />
-        </div>
+        <JsonField value={val} onChange={set} />
       ) : config.type === "enumeration" && Array.isArray(config.enum) ? (
         <Select>
           <SelectTrigger className="w-[180px]">
@@ -1324,8 +1311,7 @@ export function FieldRenderer({
           </SelectContent>
         </Select>
       ) : config.type === "password" ? (
-        <Input
-          type="password"
+        <PasswordInput
           value={String(val ?? "")}
           onChange={(e) => set(e.target.value)}
           placeholder={`Enter ${field}...`}
