@@ -100,7 +100,7 @@ export default function AuditLogsPage() {
                   <TableCell className="text-muted-foreground">{row.email || row.userId || "—"}</TableCell>
                   <TableCell className="text-muted-foreground font-mono text-xs">{row.ip || "—"}</TableCell>
                   <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
-                    {row.payload || "—"}
+                    {formatAuditPayload(row.payload)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -125,4 +125,20 @@ export default function AuditLogsPage() {
       )}
     </div>
   );
+}
+
+/**
+ * Audit `payload` arrives from the API as a JSON string on most rows,
+ * but some adapters auto-parse it and hand us an object. Rendering an
+ * object straight into JSX crashes the page — see
+ * memory/feedback_no_object_as_react_child.md. Always go through here.
+ */
+function formatAuditPayload(value: unknown): string {
+  if (value == null || value === "") return "—";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
