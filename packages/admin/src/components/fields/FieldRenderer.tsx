@@ -40,6 +40,7 @@ import {
 import { TiptapEditor } from "./TiptapEditor";
 import { JsonField } from "./JsonField";
 import { BooleanField } from "./BooleanField";
+import { MediaPreviewGrid } from "./MediaPreviewGrid";
 
 interface FieldRendererProps {
   field: string;
@@ -879,134 +880,39 @@ function MediaFieldRenderer({
     <div className="max-w-3xl space-y-3">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="font-medium">Selected media</span>
+          <span className="font-medium">
+            Selected media
+            {multiple && current.length > 0 && (
+              <span className="ml-1.5 text-[11px] font-normal">
+                · {current.length} item{current.length === 1 ? "" : "s"}
+              </span>
+            )}
+          </span>
           {multiple && current.length > 1 && (
             <span className="text-[11px]">
-              Drag handles to reorder (top items appear first)
+              Hover a card to reorder, click to preview
             </span>
           )}
         </div>
-        <div className="flex flex-wrap items-stretch gap-3">
         {current.length > 0 ? (
-          current.map((item, i) => {
-            const obj = item as Record<string, unknown>;
-            const url = obj?.url as string | undefined;
-            const name = (obj?.name as string) || `Asset ${i + 1}`;
-            const mime = (obj?.mime as string) || "";
-            const kind = getFileKind(mime || url);
-            const isImg = url && kind === "image";
-            return (
-              <div
-                key={(obj?.id ?? i) as string}
-                className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 group min-w-[260px]">
-                <div className="flex flex-col items-center gap-1">
-                  {isImg && url ? (
-                  <img
-                    src={getImageUrl(url)}
-                    alt={name}
-                    className="h-12 w-12 rounded-md object-cover shrink-0"
-                  />
-                ) : (
-                    <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center shrink-0">
-                      {kind === "video" ? (
-                        <FileVideo className="w-5 h-5 text-primary" />
-                      ) : kind === "audio" ? (
-                        <FileAudio className="w-5 h-5 text-primary" />
-                      ) : kind === "pdf" || kind === "text" ? (
-                        <FileText className="w-5 h-5 text-primary" />
-                      ) : kind === "archive" ? (
-                        <FileArchive className="w-5 h-5 text-primary" />
-                      ) : (
-                        <FileIcon className="w-5 h-5 text-muted-foreground" />
-                      )}
-                    </div>
-                )}
-                  <Badge
-                    variant="outline"
-                    className="mt-0.5 px-1.5 py-0.5 text-[9px] font-normal uppercase tracking-wide">
-                    {kind}
-                  </Badge>
-                </div>
-                <div className="flex flex-1 flex-col min-w-0">
-                  <span className="text-sm font-medium truncate">
-                    {name}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground truncate">
-                    {obj?.mime ? String(obj.mime) : "Unknown type"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {multiple && current.length > 1 && (
-                    <div className="flex items-center gap-1 mr-1 cursor-grab">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-7 w-7"
-                        onClick={() => {
-                          if (i === 0) return;
-                          const next = [...current];
-                          const [moved] = next.splice(i, 1);
-                          next.splice(i - 1, 0, moved);
-                          onChange(next);
-                        }}>
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-7 w-7"
-                        onClick={() => {
-                          if (i === current.length - 1) return;
-                          const next = [...current];
-                          const [moved] = next.splice(i, 1);
-                          next.splice(i + 1, 0, moved);
-                          onChange(next);
-                        }}>
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="h-7 w-7"
-                    onClick={() => openDetails(obj)}>
-                    <Search className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => {
-                      // remove this asset from the current selection
-                      if (multiple) {
-                        onChange(
-                          current.filter(
-                            (c) =>
-                              (c as { id?: unknown }).id !==
-                              (obj as { id?: unknown }).id,
-                          ),
-                        );
-                      } else {
-                        onChange(undefined);
-                      }
-                    }}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            );
-          })
+          <MediaPreviewGrid
+            items={current as Record<string, unknown>[]}
+            multiple={multiple}
+            onChange={(next) => {
+              if (multiple) onChange(next.length ? next : undefined);
+              else onChange(next[0] ?? undefined);
+            }}
+            onOpenDetails={(item) => openDetails(item)}
+          />
         ) : (
-          <span className="text-sm text-muted-foreground">
-            No media selected
-          </span>
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+            <ImageIcon className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No media selected</p>
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              Pick from the gallery below
+            </p>
+          </div>
         )}
-        </div>
       </div>
       <Button
         type="button"
