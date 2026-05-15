@@ -35,6 +35,8 @@ export * from "./schema-builder/SchemaBuilderFieldsTable";
 export * from "./data-table";
 export * from "./Loading";
 export * from "./ListSkeleton";
+export * from "./PageHeader";
+export * from "./StandardDialog";
 export * from "./PluginCard";
 export * from "./MiddlewareCard";
 export * from "./ConfirmDialog";

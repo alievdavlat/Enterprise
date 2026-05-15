@@ -191,6 +191,234 @@ export function IllustrationSearch({ size = 180, ...rest }: Props) {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────── */
+/* Dialog illustrations — bigger (default 140px), animated via CSS      */
+/* utility classes attached to sub-groups (see globals.css):            */
+/*   .illo-float       — gentle y-axis float                            */
+/*   .illo-pulse-glow  — radial glow breathes                           */
+/*   .illo-spin-slow   — full rotation, 12s                             */
+/*   .illo-wiggle      — tiny back-and-forth tilt                       */
+/* ──────────────────────────────────────────────────────────────────── */
+
+/** Delete confirm — trash bin with rising dust particles. */
+export function IllustrationDelete({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      <defs>
+        <linearGradient id="del-rose" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--semantic-danger) / 0.80)" />
+          <stop offset="100%" stopColor="hsl(var(--brand-pink))" />
+        </linearGradient>
+        <radialGradient id="del-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="hsl(var(--semantic-danger) / 0.30)" />
+          <stop offset="100%" stopColor="hsl(var(--semantic-danger) / 0)" />
+        </radialGradient>
+      </defs>
+      <circle cx="100" cy="100" r="80" fill="url(#del-glow)" className="illo-pulse-glow" />
+      <g className="illo-wiggle origin-bottom">
+        {/* Bin body */}
+        <rect x="68" y="88" width="64" height="64" rx="6" fill="hsl(var(--card))" stroke="url(#del-rose)" strokeWidth="3" />
+        {/* Bin lid */}
+        <rect x="60" y="76" width="80" height="10" rx="3" fill="url(#del-rose)" />
+        {/* Handle */}
+        <path d="M88 76 L88 66 L112 66 L112 76" stroke="url(#del-rose)" strokeWidth="3" strokeLinecap="round" fill="none" />
+        {/* Lines inside */}
+        <line x1="86" y1="104" x2="86" y2="138" stroke="hsl(var(--semantic-danger) / 0.50)" strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="100" y1="104" x2="100" y2="138" stroke="hsl(var(--semantic-danger) / 0.50)" strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="114" y1="104" x2="114" y2="138" stroke="hsl(var(--semantic-danger) / 0.50)" strokeWidth="2.5" strokeLinecap="round" />
+      </g>
+      {/* Floating particles */}
+      <g className="illo-float">
+        <circle cx="50" cy="60" r="2.5" fill="hsl(var(--semantic-danger) / 0.70)" />
+        <circle cx="150" cy="58" r="2" fill="hsl(var(--brand-pink) / 0.70)" />
+        <circle cx="40" cy="100" r="1.8" fill="hsl(var(--semantic-danger) / 0.50)" />
+        <circle cx="162" cy="106" r="2.2" fill="hsl(var(--brand-pink) / 0.60)" />
+      </g>
+    </svg>
+  );
+}
+
+/** Create new — sparkling plus icon. */
+export function IllustrationCreate({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      {defs("create")}
+      <circle cx="100" cy="100" r="80" fill="url(#create-glow)" className="illo-pulse-glow" />
+      <g className="illo-float">
+        <circle cx="100" cy="100" r="44" fill="url(#create-violet)" />
+        <line x1="100" y1="78" x2="100" y2="122" stroke="white" strokeWidth="6" strokeLinecap="round" />
+        <line x1="78" y1="100" x2="122" y2="100" stroke="white" strokeWidth="6" strokeLinecap="round" />
+      </g>
+      {/* Stars */}
+      <g className="illo-spin-slow origin-center">
+        <path d="M40 50 L43 58 L51 60 L43 62 L40 70 L37 62 L29 60 L37 58 Z" fill="hsl(var(--brand-pink))" />
+        <path d="M160 60 L162 65 L167 67 L162 69 L160 74 L158 69 L153 67 L158 65 Z" fill="hsl(var(--brand-blue))" />
+        <path d="M50 150 L52 155 L57 157 L52 159 L50 164 L48 159 L43 157 L48 155 Z" fill="hsl(var(--brand-emerald))" />
+      </g>
+    </svg>
+  );
+}
+
+/** Upload — cloud with rising arrow. */
+export function IllustrationUpload({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      {defs("upload")}
+      <circle cx="100" cy="100" r="80" fill="url(#upload-glow)" className="illo-pulse-glow" />
+      {/* Cloud */}
+      <path
+        d="M58 120 C50 120 44 114 44 106 C44 98 50 92 58 92 C58 80 68 70 80 70 C90 70 98 76 102 84 C106 80 112 78 118 78 C130 78 140 88 140 100 C148 100 154 106 154 114 C154 120 148 124 142 124 L58 124 C58 124 58 122 58 120 Z"
+        fill="hsl(var(--card))"
+        stroke="url(#upload-blue)"
+        strokeWidth="2.5"
+      />
+      <g className="illo-float">
+        {/* Arrow shaft */}
+        <line x1="100" y1="148" x2="100" y2="100" stroke="url(#upload-violet)" strokeWidth="6" strokeLinecap="round" />
+        {/* Arrow head */}
+        <path d="M84 116 L100 100 L116 116" stroke="url(#upload-violet)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </g>
+      {/* Floor */}
+      <ellipse cx="100" cy="170" rx="56" ry="5" fill="hsl(var(--brand-violet) / 0.12)" />
+    </svg>
+  );
+}
+
+/** Confirm / question — speech bubble with ? */
+export function IllustrationConfirm({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      {defs("confirm")}
+      <circle cx="100" cy="100" r="80" fill="url(#confirm-glow)" className="illo-pulse-glow" />
+      <g className="illo-wiggle origin-center">
+        {/* Speech bubble */}
+        <path
+          d="M50 70 Q50 56 64 56 L136 56 Q150 56 150 70 L150 120 Q150 134 136 134 L106 134 L90 152 L92 134 L64 134 Q50 134 50 120 Z"
+          fill="hsl(var(--card))"
+          stroke="url(#confirm-violet)"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        {/* Question mark */}
+        <path
+          d="M87 82 Q87 70 100 70 Q113 70 113 82 Q113 90 105 94 Q100 96 100 104"
+          stroke="url(#confirm-violet)"
+          strokeWidth="6"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <circle cx="100" cy="118" r="3.5" fill="hsl(var(--brand-violet))" />
+      </g>
+    </svg>
+  );
+}
+
+/** Key / auth — key with halo for token + provider dialogs. */
+export function IllustrationKey({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      {defs("key")}
+      <circle cx="100" cy="100" r="80" fill="url(#key-glow)" className="illo-pulse-glow" />
+      <g className="illo-float origin-center">
+        {/* Key head */}
+        <circle cx="80" cy="100" r="22" fill="hsl(var(--card))" stroke="url(#key-violet)" strokeWidth="4" />
+        <circle cx="80" cy="100" r="7" fill="url(#key-violet)" />
+        {/* Key shaft */}
+        <line x1="100" y1="100" x2="148" y2="100" stroke="url(#key-violet)" strokeWidth="6" strokeLinecap="round" />
+        {/* Teeth */}
+        <line x1="132" y1="100" x2="132" y2="112" stroke="url(#key-violet)" strokeWidth="5" strokeLinecap="round" />
+        <line x1="142" y1="100" x2="142" y2="108" stroke="url(#key-violet)" strokeWidth="5" strokeLinecap="round" />
+      </g>
+      {/* Sparkle */}
+      <g className="illo-spin-slow origin-center">
+        <circle cx="48" cy="60" r="2.5" fill="hsl(var(--brand-pink))" />
+        <circle cx="156" cy="68" r="2" fill="hsl(var(--brand-blue))" />
+      </g>
+    </svg>
+  );
+}
+
+/** Database / schema — three layered stacked rings. */
+export function IllustrationDatabase({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      {defs("db")}
+      <circle cx="100" cy="100" r="80" fill="url(#db-glow)" className="illo-pulse-glow" />
+      <g className="illo-float origin-center">
+        {/* Stack of disc rings */}
+        <ellipse cx="100" cy="140" rx="50" ry="14" fill="hsl(var(--card))" stroke="url(#db-violet)" strokeWidth="2.5" />
+        <ellipse cx="100" cy="115" rx="50" ry="14" fill="hsl(var(--card))" stroke="url(#db-violet)" strokeWidth="2.5" />
+        <ellipse cx="100" cy="90" rx="50" ry="14" fill="hsl(var(--card))" stroke="url(#db-violet)" strokeWidth="2.5" />
+        <ellipse cx="100" cy="65" rx="50" ry="14" fill="url(#db-violet)" opacity="0.85" stroke="url(#db-violet)" strokeWidth="2.5" />
+        {/* Connection lines between discs */}
+        <line x1="50" y1="65" x2="50" y2="140" stroke="url(#db-violet)" strokeWidth="2.5" />
+        <line x1="150" y1="65" x2="150" y2="140" stroke="url(#db-violet)" strokeWidth="2.5" />
+        {/* Indicator dot on top */}
+        <circle cx="100" cy="65" r="3.5" fill="hsl(var(--brand-emerald))" />
+      </g>
+    </svg>
+  );
+}
+
+/** Document / file — page with corner fold and floating dots. */
+export function IllustrationDocument({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      {defs("doc")}
+      <circle cx="100" cy="100" r="80" fill="url(#doc-glow)" className="illo-pulse-glow" />
+      <g className="illo-float origin-center">
+        {/* Document body */}
+        <path
+          d="M60 50 L130 50 L150 70 L150 160 L60 160 Z"
+          fill="hsl(var(--card))"
+          stroke="url(#doc-violet)"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        {/* Corner fold */}
+        <path d="M130 50 L130 70 L150 70 Z" fill="url(#doc-violet)" opacity="0.30" stroke="url(#doc-violet)" strokeWidth="3" strokeLinejoin="round" />
+        {/* Lines */}
+        <line x1="74" y1="88" x2="136" y2="88" stroke="hsl(var(--brand-violet) / 0.50)" strokeWidth="3" strokeLinecap="round" />
+        <line x1="74" y1="104" x2="120" y2="104" stroke="hsl(var(--brand-blue) / 0.50)" strokeWidth="3" strokeLinecap="round" />
+        <line x1="74" y1="120" x2="132" y2="120" stroke="hsl(var(--brand-pink) / 0.50)" strokeWidth="3" strokeLinecap="round" />
+        <line x1="74" y1="136" x2="106" y2="136" stroke="hsl(var(--muted-foreground) / 0.30)" strokeWidth="3" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+
+/** Warning — alert triangle with focus glow. */
+export function IllustrationWarning({ size = 140, ...rest }: Props) {
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size} fill="none" {...rest}>
+      <defs>
+        <linearGradient id="warn-amber" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--semantic-warning))" />
+          <stop offset="100%" stopColor="hsl(var(--brand-pink))" />
+        </linearGradient>
+        <radialGradient id="warn-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="hsl(var(--semantic-warning) / 0.30)" />
+          <stop offset="100%" stopColor="hsl(var(--semantic-warning) / 0)" />
+        </radialGradient>
+      </defs>
+      <circle cx="100" cy="100" r="80" fill="url(#warn-glow)" className="illo-pulse-glow" />
+      <g className="illo-wiggle origin-center">
+        {/* Triangle */}
+        <path
+          d="M100 50 L156 146 L44 146 Z"
+          fill="hsl(var(--card))"
+          stroke="url(#warn-amber)"
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        {/* Exclamation */}
+        <line x1="100" y1="84" x2="100" y2="118" stroke="hsl(var(--semantic-warning))" strokeWidth="6" strokeLinecap="round" />
+        <circle cx="100" cy="132" r="4" fill="hsl(var(--semantic-warning))" />
+      </g>
+    </svg>
+  );
+}
+
 /** Generic decorative "spark" — small accent for tiles. */
 export function Spark({ size = 16, ...rest }: Props) {
   return (
