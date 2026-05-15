@@ -12,7 +12,15 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@enterprise/design-system/table";
-import { Search, LayoutGrid, Filter, Database } from "lucide-react";
+import {
+  Search,
+  LayoutGrid,
+  Filter,
+  Database,
+  Rows3,
+  Rows2,
+  AlignJustify,
+} from "lucide-react";
 
 import {
   Button,
@@ -29,6 +37,13 @@ import {
   DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Label,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from "@enterprise/design-system";
 
 export interface DataTablePaginationMeta {
@@ -58,6 +73,27 @@ interface DataTableProps<TData> {
   onSelectionChange?: (selected: TData[]) => void;
 }
 
+type Density = "compact" | "comfortable" | "spacious";
+
+const DENSITY_STORAGE_KEY = "enterprise.dataTable.density";
+
+const DENSITY_CONFIG: Record<
+  Density,
+  { label: string; icon: React.ComponentType<{ className?: string }>; cellPy: string; rowH: string }
+> = {
+  compact: { label: "Compact", icon: AlignJustify, cellPy: "py-1", rowH: "" },
+  comfortable: { label: "Comfortable", icon: Rows3, cellPy: "py-3", rowH: "" },
+  spacious: { label: "Spacious", icon: Rows2, cellPy: "py-5", rowH: "" },
+};
+
+function readDensity(): Density {
+  if (typeof window === "undefined") return "comfortable";
+  const v = window.localStorage.getItem(DENSITY_STORAGE_KEY);
+  return v === "compact" || v === "spacious" || v === "comfortable"
+    ? v
+    : "comfortable";
+}
+
 export function DataTable<TData>({
   columns,
   data,
@@ -76,6 +112,20 @@ export function DataTable<TData>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(initialColumnVisibility);
   const [rowSelection, setRowSelection] = React.useState({});
+  const [density, setDensityState] = React.useState<Density>("comfortable");
+
+  // Hydrate density from localStorage on mount so SSR + first paint match,
+  // then persist on change.
+  React.useEffect(() => {
+    setDensityState(readDensity());
+  }, []);
+  const setDensity = (d: Density) => {
+    setDensityState(d);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(DENSITY_STORAGE_KEY, d);
+    }
+  };
+  const densityCellPy = DENSITY_CONFIG[density].cellPy;
 
 
   const table = useReactTable({
@@ -142,17 +192,99 @@ export function DataTable<TData>({
             }
           />
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <Filter className="w-4 h-4" /> Filters
-          </Button>
+        <div className="flex gap-2 items-center">
+          {/* Per-column filter popover. Lets the user narrow each filterable
+              column without leaving the table view — every input maps to
+              tanstack's column.setFilterValue. */}
+          <Popover>
+            <PopoverTrigger
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs h-8 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer aria-expanded:bg-accent aria-expanded:text-foreground">
+              <Filter className="w-4 h-4" /> Filters
+              {columnFilters.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold tabular-nums">
+                  {columnFilters.length}
+                </span>
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Filter columns</p>
+                {columnFilters.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setColumnFilters([])}>
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                {table
+                  .getAllLeafColumns()
+                  .filter((c) => c.getCanFilter() && c.getIsVisible())
+                  .map((column) => (
+                    <div key={column.id} className="space-y-1">
+                      <Label
+                        htmlFor={`filter-${column.id}`}
+                        className="capitalize text-xs">
+                        {column.id}
+                      </Label>
+                      <Input
+                        id={`filter-${column.id}`}
+                        value={(column.getFilterValue() as string) ?? ""}
+                        onChange={(e) =>
+                          column.setFilterValue(e.target.value || undefined)
+                        }
+                        placeholder={`Search ${column.id}…`}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  ))}
+                {table
+                  .getAllLeafColumns()
+                  .filter((c) => c.getCanFilter() && c.getIsVisible())
+                  .length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No filterable columns are visible. Toggle columns from the
+                    Columns menu first.
+                  </p>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Density toggle — Strapi-style cycle through compact /
+              comfortable / spacious. Persisted to localStorage so the
+              choice survives reloads. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs h-8 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+                onClick={() => {
+                  const order: Density[] = [
+                    "compact",
+                    "comfortable",
+                    "spacious",
+                  ];
+                  const next =
+                    order[(order.indexOf(density) + 1) % order.length];
+                  setDensity(next);
+                }}>
+                {React.createElement(DENSITY_CONFIG[density].icon, {
+                  className: "w-4 h-4",
+                })}
+                <span className="hidden md:inline">
+                  {DENSITY_CONFIG[density].label}
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Density — click to switch</TooltipContent>
+          </Tooltip>
+
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="ml-2 inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs h-8 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs h-8 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer aria-expanded:bg-accent aria-expanded:text-foreground"
             >
               <LayoutGrid className="w-4 h-4" />
               Columns
@@ -211,7 +343,7 @@ export function DataTable<TData>({
                 .map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
                     {table.getAllColumns().map((column) => (
-                      <TableCell key={column.id}>
+                      <TableCell key={column.id} className={densityCellPy}>
                         <div className="h-4 bg-muted/50 rounded" />
                       </TableCell>
                     ))}
@@ -246,7 +378,7 @@ export function DataTable<TData>({
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className="max-w-[240px] truncate py-3"
+                      className={`max-w-[240px] truncate ${densityCellPy}`}
                     >
                       <>
                         {flexRender(
