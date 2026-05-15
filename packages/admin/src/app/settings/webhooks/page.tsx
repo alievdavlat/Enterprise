@@ -25,7 +25,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton } from "@/components/shared";
+import { ListSkeleton, PageHeader } from "@/components/shared";
 
 type WebhookRow = {
   id: number;
@@ -157,21 +157,21 @@ export default function WebhooksPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Webhooks</h1>
-          <p className="text-muted-foreground mt-1">
-            Send HTTP requests to external URLs when events occur
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={openCreate}>
-              <Plus className="w-4 h-4" />
-              Create new webhook
-            </Button>
-          </DialogTrigger>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Webhook}
+        eyebrow="Settings"
+        title="Webhooks"
+        description="Send HTTP requests to external URLs when events occur"
+        variant="blue"
+        actions={
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus className="w-4 h-4" />
+            Create new webhook
+          </Button>
+        }
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
@@ -230,7 +230,6 @@ export default function WebhooksPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
       {loading ? (
         <ListSkeleton rows={4} />

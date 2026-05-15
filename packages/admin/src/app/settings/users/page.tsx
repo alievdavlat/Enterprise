@@ -27,7 +27,7 @@ import {
 import { Pencil, Plus, Trash2, Users as UsersIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton } from "@/components/shared";
+import { ListSkeleton, PageHeader } from "@/components/shared";
 
 type User = {
   id: number;
@@ -139,23 +139,19 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
-            <UsersIcon className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Users</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage admin users and assign their roles.
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Invite user
-        </Button>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={UsersIcon}
+        eyebrow="Settings"
+        title="Users"
+        description="Manage admin users and assign their roles."
+        variant="primary"
+        actions={
+          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Invite user
+          </Button>
+        }
+      />
 
       <Card className="border-border/50">
         <CardHeader>

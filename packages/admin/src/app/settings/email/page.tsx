@@ -5,6 +5,7 @@ import { Mail, Send } from "lucide-react";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared";
 
 export default function EmailSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -75,14 +76,15 @@ export default function EmailSettingsPage() {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Email</h1>
-          <p className="text-muted-foreground mt-1">Configure the email provider and send test emails</p>
-        </div>
-        <Button onClick={save} loading={saving}>Save</Button>
-      </div>
+    <div className="p-8 space-y-8">
+      <PageHeader
+        icon={Mail}
+        eyebrow="Settings"
+        title="Email"
+        description="Configure the email provider and send test emails."
+        variant="blue"
+        actions={<Button onClick={save} loading={saving}>Save</Button>}
+      />
 
       <Card className="border-border/50">
         <CardHeader>

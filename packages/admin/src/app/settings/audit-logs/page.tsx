@@ -14,7 +14,7 @@ import {
   TableCell,
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
-import { ListSkeleton } from "@/components/shared";
+import { ListSkeleton, PageHeader } from "@/components/shared";
 
 type AuditLogRow = {
   id: number;
@@ -55,13 +55,14 @@ export default function AuditLogsPage() {
   const pageCount = pagination?.pageCount ?? 1;
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Audit Logs</h1>
-        <p className="text-muted-foreground mt-1">
-          History of admin actions (login, content changes, etc.)
-        </p>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={ClipboardList}
+        eyebrow="Settings"
+        title="Audit logs"
+        description="History of admin actions (login, content changes, etc.)"
+        variant="amber"
+      />
 
       {loading ? (
         <ListSkeleton rows={5} />

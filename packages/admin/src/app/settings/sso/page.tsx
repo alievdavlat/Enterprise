@@ -15,6 +15,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared";
 
 const STORE_KEY = "admin::sso";
 
@@ -73,20 +74,19 @@ export default function SSOPage() {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Single Sign-On (SSO)
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure identity provider (SAML/OIDC)
-          </p>
-        </div>
-        <Button onClick={save} loading={saving}>
-          Save
-        </Button>
-      </div>
+    <div className="p-8 space-y-8">
+      <PageHeader
+        icon={Lock}
+        eyebrow="Settings"
+        title="Single Sign-On"
+        description="Configure identity provider (SAML / OIDC) for enterprise login."
+        variant="violet"
+        actions={
+          <Button onClick={save} loading={saving}>
+            Save
+          </Button>
+        }
+      />
 
       <Card className="border-border/50">
         <CardHeader>

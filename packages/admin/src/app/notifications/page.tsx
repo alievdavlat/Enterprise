@@ -11,6 +11,7 @@ import {
   Badge,
   Button,
 } from "@enterprise/design-system";
+import { PageHeader } from "@/components/shared";
 import {
   Bell,
   CheckCircle2,
@@ -80,20 +81,17 @@ export default function NotificationsPage() {
 
   return (
     <div className="container mx-auto max-w-4xl p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Bell className="h-6 w-6 text-muted-foreground" />
-          <div>
-            <h1 className="text-2xl font-semibold">Notifications</h1>
-            <p className="text-sm text-muted-foreground">
-              Recent activity in your workspace.
-            </p>
-          </div>
-        </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          Refresh
-        </Button>
-      </div>
+      <PageHeader
+        icon={Bell}
+        title="Notifications"
+        description="Recent activity in your workspace."
+        variant="primary"
+        actions={
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            Refresh
+          </Button>
+        }
+      />
 
       {loading && (
         <div className="space-y-3">

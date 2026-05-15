@@ -24,7 +24,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ListSkeleton } from "@/components/shared";
+import { ListSkeleton, PageHeader } from "@/components/shared";
 
 type TransferTokenRow = {
   id: number;
@@ -100,19 +100,21 @@ export default function TransferTokensPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Transfer Tokens</h1>
-          <p className="text-muted-foreground mt-1">Tokens for data transfer (pull/push)</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={openCreate}>
-              <Plus className="w-4 h-4" />
-              Create new Transfer Token
-            </Button>
-          </DialogTrigger>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Truck}
+        eyebrow="Settings"
+        title="Transfer tokens"
+        description="Tokens for data transfer (pull/push) via the CLI or external tools."
+        variant="emerald"
+        actions={
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus className="w-4 h-4" />
+            Create token
+          </Button>
+        }
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Transfer Token</DialogTitle>
@@ -165,7 +167,6 @@ export default function TransferTokensPage() {
             )}
           </DialogContent>
         </Dialog>
-      </div>
 
       {loading ? (
         <ListSkeleton rows={3} />

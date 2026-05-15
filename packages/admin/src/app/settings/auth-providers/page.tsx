@@ -24,6 +24,7 @@ import {
   Textarea,
 } from "@enterprise/design-system";
 import { KeyRound, Github, ExternalLink, Plus } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 
 interface Preset {
   name: string;
@@ -79,23 +80,19 @@ export default function AuthProvidersPage() {
   const customRows = Object.values(configured).filter((r) => !presetNames.has(r.name) && r.isCustom);
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
-            <KeyRound className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Auth providers</h1>
-            <p className="text-muted-foreground mt-1">
-              Enable social sign-in for your admin + API. Each provider talks standard OAuth 2.0.
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => setCustomDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Add custom provider
-        </Button>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={KeyRound}
+        eyebrow="Settings"
+        title="Auth providers"
+        description="Enable social sign-in for your admin + API. Each provider talks standard OAuth 2.0."
+        variant="violet"
+        actions={
+          <Button onClick={() => setCustomDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Add custom provider
+          </Button>
+        }
+      />
 
       {loading ? (
         <div className="text-muted-foreground p-8 text-center">Loading…</div>
