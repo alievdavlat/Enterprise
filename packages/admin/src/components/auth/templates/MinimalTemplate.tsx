@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Button,
   Input,
+  PasswordInput,
   Label,
   Card,
   CardContent,
@@ -90,9 +91,8 @@ export function MinimalTemplate({
 
             <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

@@ -12,6 +12,7 @@ import {
   CardTitle,
   Button,
   Input,
+  PasswordInput,
   Label,
   Separator,
   Avatar,
@@ -205,9 +206,8 @@ export default function AccountPage() {
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={handlePassword}>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="current">Current password</Label>
-              <Input
+              <PasswordInput
                 id="current"
-                type="password"
                 autoComplete="current-password"
                 value={pw.currentPassword}
                 onChange={(e) => setPw((p) => ({ ...p, currentPassword: e.target.value }))}
@@ -216,9 +216,8 @@ export default function AccountPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="new">New password</Label>
-              <Input
+              <PasswordInput
                 id="new"
-                type="password"
                 autoComplete="new-password"
                 value={pw.newPassword}
                 onChange={(e) => setPw((p) => ({ ...p, newPassword: e.target.value }))}
@@ -227,9 +226,8 @@ export default function AccountPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm">Confirm new password</Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 autoComplete="new-password"
                 value={pw.confirmPassword}
                 onChange={(e) => setPw((p) => ({ ...p, confirmPassword: e.target.value }))}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Button,
   Input,
+  PasswordInput,
   Label,
   Badge,
   BackgroundGradient,
@@ -88,9 +89,8 @@ export function WelcomeBackTemplate({
             <Label htmlFor="password" className="text-zinc-200 font-semibold">
               Password
             </Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               placeholder={isRegister ? "Create a password" : "Your password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}

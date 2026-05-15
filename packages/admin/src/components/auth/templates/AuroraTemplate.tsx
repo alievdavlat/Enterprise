@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Button,
   Input,
+  PasswordInput,
   Label,
   AuroraBackground,
   CardSpotlight,
@@ -98,9 +99,8 @@ export function AuroraTemplate({
                 <Label htmlFor="password" className="text-zinc-300">
                   Password
                 </Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
