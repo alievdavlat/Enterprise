@@ -7,10 +7,6 @@
   "pluralName": "users",
   "draftAndPublish": true,
   "attributes": {
-    "43": {
-      "type": "relation",
-      "target": "api::users.users"
-    },
     "title": {
       "type": "string",
       "required": true
@@ -72,6 +68,11 @@
     },
     "json": {
       "type": "json"
+    },
+    "oshaname": {
+      "type": "relation",
+      "target": "api::users.users",
+      "relation": "oneToMany"
     }
   }
 }
