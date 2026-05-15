@@ -5,15 +5,11 @@ import {
   Input,
   Label,
   Switch,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
 } from "@enterprise/design-system";
 import { CategoryCombobox } from "./CategoryCombobox";
 import { Plus, Layers, LayoutPanelLeft, Component, Shuffle } from "lucide-react";
+import { StandardDialog } from "@/components/shared/StandardDialog";
+import { IllustrationDatabase } from "@/components/illustrations";
 
 export interface SchemaBuilderNewCtDialogProps {
   open: boolean;
@@ -72,17 +68,22 @@ export function SchemaBuilderNewCtDialog({
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger ? <DialogTrigger>{trigger as never}</DialogTrigger> : null}
-      <DialogContent className="sm:max-w-[720px]">
-        <DialogHeader>
-          <DialogTitle>Create Content Schema</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Define the type of content you want to manage and its behavior in
-            the admin panel.
-          </p>
-        </DialogHeader>
-        <div className="grid gap-6 py-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)]">
+    <StandardDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      illustration={<IllustrationDatabase size={120} />}
+      title="Create Content Schema"
+      description="Define the type of content you want to manage and its behavior in the admin panel."
+      size="xl"
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={onCreate}>Create schema</Button>
+        </>
+      }>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)]">
           <div className="space-y-3">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">
               Schema type
@@ -163,19 +164,7 @@ export function SchemaBuilderNewCtDialog({
               )}
           </div>
         </div>
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="cursor-pointer">
-            Cancel
-          </Button>
-          <Button onClick={onCreate} className="cursor-pointer">
-            Create schema
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </StandardDialog>
   );
 }
 

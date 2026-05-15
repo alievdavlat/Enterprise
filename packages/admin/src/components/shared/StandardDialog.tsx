@@ -32,29 +32,31 @@ const SIZE_REM: Record<StandardDialogSize, number> = {
 export interface StandardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Animated SVG illustration shown above the title. Defaults to none. */
+  /** Animated SVG illustration shown above the title. */
   illustration?: React.ReactNode;
-  /** Tone tints the illustration backdrop ring. */
-  tone?: "violet" | "blue" | "emerald" | "amber" | "rose";
   title: string;
   description?: React.ReactNode;
   /** Body content (forms, lists, etc.). */
   children?: React.ReactNode;
   /** Footer slot — typically Cancel + primary action buttons. */
   footer?: React.ReactNode;
-  /** Standard size keyword. Defaults to `md` (sm:max-w-lg = 512px). */
+  /**
+   * Standard size keyword. Defaults to `lg` (≈672px) — that's the canonical
+   * "Add new assets" footprint. Every dialog in the admin should default to
+   * this so they all look the same width/height.
+   */
   size?: StandardDialogSize;
   /** Extra Tailwind on the DialogContent. */
   className?: string;
+  /**
+   * @deprecated Kept for source compatibility — tone is now ignored.
+   * Previous versions tinted the illustration band per-action (rose for
+   * delete, amber for warning, ...). User feedback: backgrounds shouldn't
+   * vary between dialogs. The band now uses one neutral subtle backdrop
+   * for every dialog so they feel like the same surface.
+   */
+  tone?: "violet" | "blue" | "emerald" | "amber" | "rose";
 }
-
-const TONE_RING: Record<NonNullable<StandardDialogProps["tone"]>, string> = {
-  violet: "from-violet-500/20 to-transparent",
-  blue: "from-blue-500/20 to-transparent",
-  emerald: "from-emerald-500/20 to-transparent",
-  amber: "from-amber-500/20 to-transparent",
-  rose: "from-rose-500/20 to-transparent",
-};
 
 /**
  * Standard modal chrome for the whole admin. Every dialog in the app
@@ -62,25 +64,24 @@ const TONE_RING: Record<NonNullable<StandardDialogProps["tone"]>, string> = {
  * and footer alignment stay identical surface-to-surface.
  *
  * Anatomy (top → bottom):
- *   - Illustration (optional) in a soft radial backdrop
+ *   - Illustration (optional) over a neutral subtle backdrop band
  *   - Title
  *   - Description (optional)
  *   - Body (children)
  *   - Footer (right-aligned buttons)
  *
  * Sizes:
- *   sm = 448px · md = 512px (default) · lg = 672px · xl = 896px
+ *   sm = 448 · md = 512 · lg = 672 (default) · xl = 896
  */
 export function StandardDialog({
   open,
   onOpenChange,
   illustration,
-  tone = "violet",
   title,
   description,
   children,
   footer,
-  size = "md",
+  size = "lg",
   className,
 }: StandardDialogProps) {
   return (
@@ -89,16 +90,11 @@ export function StandardDialog({
         className={cn(SIZE_CLASSES[size], className)}
         style={{ maxWidth: `min(calc(100vw - 2rem), ${SIZE_REM[size]}rem)` }}>
         {illustration && (
-          <div
-            className={cn(
-              "relative flex items-center justify-center -mx-4 -mt-4 mb-1 pt-6 pb-2 overflow-hidden",
-              "bg-gradient-to-b",
-              TONE_RING[tone],
-            )}>
+          <div className="relative flex items-center justify-center -mx-4 -mt-4 mb-1 pt-8 pb-4 overflow-hidden bg-muted/40 dark:bg-muted/15">
             <div className="relative">{illustration}</div>
           </div>
         )}
-        <DialogHeader className="text-center sm:text-left">
+        <DialogHeader>
           <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
           {description && (
             <DialogDescription className="text-sm leading-relaxed">
