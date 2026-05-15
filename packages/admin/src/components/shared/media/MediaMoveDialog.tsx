@@ -1,13 +1,9 @@
 "use client";
 
 import { Globe, Folder } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Button,
-} from "@enterprise/design-system";
+import { Button } from "@enterprise/design-system";
+import { StandardDialog } from "@/components/shared/StandardDialog";
+import { IllustrationDocument } from "@/components/illustrations";
 import type { MediaFolder } from "@/types";
 
 export interface MediaMoveDialogProps {
@@ -24,33 +20,31 @@ export function MediaMoveDialog({
   onMove,
 }: MediaMoveDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Move assets</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-2 py-4">
+    <StandardDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      illustration={<IllustrationDocument size={120} />}
+      title="Move assets"
+      description="Pick a destination folder. Move to global places assets at the gallery root.">
+      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          onClick={() => onMove(null)}>
+          <Globe className="w-4 h-4 text-emerald-500" />
+          Move to global
+        </Button>
+        {folders.map((f) => (
           <Button
+            key={f.id}
             variant="outline"
             className="w-full justify-start gap-2"
-            onClick={() => onMove(null)}
-          >
-            <Globe className="w-4 h-4 text-emerald-500" />
-            Move to global
+            onClick={() => onMove(f.path)}>
+            <Folder className="w-4 h-4 text-cyan-500" />
+            {f.name}
           </Button>
-          {folders.map((f) => (
-            <Button
-              key={f.id}
-              variant="outline"
-              className="w-full justify-start gap-2"
-              onClick={() => onMove(f.path)}
-            >
-              <Folder className="w-4 h-4 text-cyan-500" />
-              {f.name}
-            </Button>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
+        ))}
+      </div>
+    </StandardDialog>
   );
 }

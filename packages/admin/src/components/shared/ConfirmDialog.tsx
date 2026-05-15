@@ -1,6 +1,11 @@
 "use client";
 
-import { Modal, Button } from "@enterprise/design-system";
+import { Button } from "@enterprise/design-system";
+import { StandardDialog } from "@/components/shared/StandardDialog";
+import {
+  IllustrationDelete,
+  IllustrationConfirm,
+} from "@/components/illustrations";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -12,6 +17,14 @@ export interface ConfirmDialogProps {
   variant?: "default" | "destructive";
 }
 
+/**
+ * Generic confirm dialog used across the admin (delete X, archive Y,
+ * etc.). Uses the standard chrome — same illustration band + size as
+ * every other dialog.
+ *
+ * Illustration picks itself from variant: destructive → trash bin,
+ * default → question speech bubble.
+ */
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -29,11 +42,20 @@ export function ConfirmDialog({
   const confirmVariant: "destructive" | "default" =
     variant === "destructive" ? "destructive" : "default";
 
+  const illustration =
+    variant === "destructive" ? (
+      <IllustrationDelete size={120} />
+    ) : (
+      <IllustrationConfirm size={120} />
+    );
+
   return (
-    <Modal
+    <StandardDialog
       open={open}
-      onClose={() => onOpenChange(false)}
+      onOpenChange={onOpenChange}
+      illustration={illustration}
       title={title}
+      description={description}
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -43,8 +65,7 @@ export function ConfirmDialog({
             {confirmLabel}
           </Button>
         </>
-      }>
-      <p className="text-sm text-muted-foreground py-2">{description}</p>
-    </Modal>
+      }
+    />
   );
 }
