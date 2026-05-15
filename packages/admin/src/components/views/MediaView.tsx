@@ -304,6 +304,8 @@ export function MediaView() {
         sort={sort}
         onSortChange={setSortAndSave}
         sortOptions={SORT_OPTIONS}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       <MediaAddFolderDialog

@@ -1,10 +1,19 @@
 import { Button } from "@enterprise/design-system";
-import { LayoutGrid, List, Settings, FolderPlus, Upload } from "lucide-react";
-import { Sparkles } from "lucide-react";
+import {
+  LayoutGrid,
+  List,
+  Settings,
+  FolderPlus,
+  Upload,
+  Smartphone,
+  Sparkles,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { MediaViewMode } from "./MediaAssetsSection";
 
 interface MediaHeaderProps {
-  viewMode: "grid" | "list";
-  setViewMode: (mode: "grid" | "list") => void;
+  viewMode: MediaViewMode;
+  setViewMode: (mode: MediaViewMode) => void;
   setConfigOpen: (open: boolean) => void;
   setAddFolderOpen: (open: boolean) => void;
   setAddAssetOpen: (open: boolean) => void;
@@ -12,6 +21,17 @@ interface MediaHeaderProps {
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploading: boolean;
 }
+
+const VIEW_OPTIONS: Array<{
+  value: MediaViewMode;
+  icon: typeof LayoutGrid;
+  title: string;
+  iconTint: string;
+}> = [
+  { value: "grid", icon: LayoutGrid, title: "Grid view", iconTint: "text-emerald-500" },
+  { value: "list", icon: List, title: "List view", iconTint: "text-blue-500" },
+  { value: "phone", icon: Smartphone, title: "Phone gallery (Photos-style)", iconTint: "text-violet-500" },
+];
 
 export const MediaHeader = ({
   viewMode,
@@ -32,24 +52,19 @@ export const MediaHeader = ({
           Upload and manage your media assets
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <div className="flex rounded-md border border-input bg-muted/30 p-0.5">
-          <Button
-            variant={viewMode === "grid" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setViewMode("grid")}
-            title="Grid view">
-            <LayoutGrid className="w-4 h-4 text-emerald-500" />
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setViewMode("list")}
-            title="List view">
-            <List className="w-4 h-4 text-blue-500" />
-          </Button>
+          {VIEW_OPTIONS.map(({ value, icon: Icon, title, iconTint }) => (
+            <Button
+              key={value}
+              variant={viewMode === value ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode(value)}
+              title={title}>
+              <Icon className={cn("w-4 h-4", iconTint)} />
+            </Button>
+          ))}
         </div>
         <Button
           variant="outline"

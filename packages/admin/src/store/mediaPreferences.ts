@@ -5,7 +5,7 @@ import { PAGE_SIZE_OPTIONS } from "@/consts";
 const defaultPageSize = 24;
 const defaultSort = "created_at:desc";
 
-export type MediaViewMode = "grid" | "list";
+export type MediaViewMode = "grid" | "list" | "phone";
 
 interface MediaPreferencesState {
   viewMode: MediaViewMode;

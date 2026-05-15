@@ -7,8 +7,9 @@ import { FileImage } from "lucide-react";
 import type { MediaFile } from "@/types";
 import { MediaAssetsGrid } from "./MediaAssetsGrid";
 import { MediaAssetsList } from "./MediaAssetsList";
+import { MediaAssetsPhoneGallery } from "./MediaAssetsPhoneGallery";
 
-export type MediaViewMode = "grid" | "list";
+export type MediaViewMode = "grid" | "list" | "phone";
 
 export interface MediaAssetsSectionProps {
   list: MediaFile[];
@@ -117,6 +118,17 @@ export function MediaAssetsSection({
               onRemove={onRemove}
             />
           </Card>
+          {pageCount > 1 && pagination}
+        </>
+      ) : viewMode === "phone" ? (
+        <>
+          <MediaAssetsPhoneGallery
+            list={list}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
+            onEdit={onEdit}
+            onRemove={onRemove}
+          />
           {pageCount > 1 && pagination}
         </>
       ) : (
