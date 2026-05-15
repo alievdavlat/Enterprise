@@ -65,7 +65,12 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-open:slide-in-from-bottom-3 data-closed:slide-out-to-bottom-2 ring-foreground/10 grid max-w-[calc(100%-2rem)] gap-4 rounded-xl p-4 text-sm ring-1 shadow-2xl shadow-black/20 duration-200 ease-out sm:max-w-sm fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+          // Chrome + animation.
+          "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-open:slide-in-from-bottom-3 data-closed:slide-out-to-bottom-2 ring-foreground/10 grid gap-4 rounded-xl p-4 text-sm ring-1 shadow-2xl shadow-black/20 duration-200 ease-out outline-none",
+          // Position + sizing. `max-w-[calc(100vw-2rem)]` keeps the dialog
+          // off the viewport edges on small screens; `sm:max-w-lg` (512px)
+          // is the default upper bound so dialogs don't span the screen.
+          "fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 max-w-[calc(100vw-2rem)] sm:max-w-lg",
           className,
         )}
         {...props}>
