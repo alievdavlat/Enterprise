@@ -29,7 +29,7 @@ import { Plus, Save, Shield, Users as UsersIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 
 type Role = { id: number; name: string; description?: string };
 type Permission = {
@@ -195,7 +195,7 @@ export default function RolesPage() {
           </CardHeader>
           <CardContent className="p-2">
             {loading ? (
-              <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+              <ListSkeleton rows={3} card={false} className="p-2" />
             ) : roles.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground">No roles yet.</div>
             ) : (

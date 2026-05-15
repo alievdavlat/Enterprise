@@ -24,7 +24,7 @@ import {
   Textarea,
 } from "@enterprise/design-system";
 import { KeyRound, Github, ExternalLink, Plus } from "lucide-react";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 
 interface Preset {
   name: string;
@@ -95,7 +95,7 @@ export default function AuthProvidersPage() {
       />
 
       {loading ? (
-        <div className="text-muted-foreground p-8 text-center">Loading…</div>
+        <ListSkeleton rows={4} />
       ) : (
         <div className="space-y-6">
           {customRows.length > 0 && (

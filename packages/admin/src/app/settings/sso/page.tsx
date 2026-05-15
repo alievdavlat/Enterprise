@@ -15,7 +15,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 
 const STORE_KEY = "admin::sso";
 
@@ -68,7 +68,7 @@ export default function SSOPage() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="text-muted-foreground">Loading…</div>
+        <ListSkeleton rows={3} />
       </div>
     );
   }

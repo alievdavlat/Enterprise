@@ -5,7 +5,7 @@ import { Mail, Send } from "lucide-react";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 
 export default function EmailSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -70,7 +70,7 @@ export default function EmailSettingsPage() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="text-muted-foreground">Loading…</div>
+        <ListSkeleton rows={3} />
       </div>
     );
   }

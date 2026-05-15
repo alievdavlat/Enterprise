@@ -21,7 +21,7 @@ import {
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 import {
   AUTH_TEMPLATES,
   DEFAULT_AUTH_TEMPLATE,
@@ -118,8 +118,8 @@ export default function AdvancedSettingsPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-muted-foreground">Loading…</div>
+      <div className="p-8 space-y-6">
+        <ListSkeleton rows={4} />
       </div>
     );
   }

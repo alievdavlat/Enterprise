@@ -24,7 +24,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "@enterprise/design-system";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, ListSkeleton } from "@/components/shared";
 
 type Locale = {
   id: number;
@@ -156,11 +156,7 @@ export default function InternationalizationPage() {
           </DialogContent>
         </Dialog>
       {loading ? (
-        <Card className="border-border/50">
-          <CardContent className="p-8 text-center text-muted-foreground">
-            Loading…
-          </CardContent>
-        </Card>
+        <ListSkeleton rows={4} />
       ) : list.length === 0 ? (
         <Card className="border-border/50">
           <CardContent className="flex flex-col items-center justify-center py-16 px-6">
