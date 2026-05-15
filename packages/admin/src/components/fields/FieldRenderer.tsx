@@ -98,14 +98,36 @@ function ComponentFieldRenderer({
             label={`${componentSchema.displayName} #${idx + 1}`}
           />
         ))}
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
           onClick={addItem}
-          className="gap-2 border-dashed">
-          <Plus className="w-3.5 h-3.5" /> Add {componentSchema.displayName}
-        </Button>
+          className={cn(
+            "group w-full flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-background/40 px-6 py-5 text-center transition-all",
+            "hover:border-primary/50 hover:bg-primary/[0.03] hover:-translate-y-0.5 hover:shadow-sm",
+            items.length === 0 && "py-8",
+          )}>
+          <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:scale-110 group-hover:bg-primary/20 transition-all">
+            <Plus className="w-4 h-4" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold">
+              Add {componentSchema.displayName}
+              {items.length > 0 && (
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                  ({items.length} added)
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              <Layers className="inline w-3 h-3 mr-1" />
+              {Object.keys(componentSchema.attributes ?? {}).length} field
+              {Object.keys(componentSchema.attributes ?? {}).length === 1
+                ? ""
+                : "s"}{" "}
+              per item
+            </p>
+          </div>
+        </button>
       </div>
     );
   }
@@ -308,43 +330,85 @@ function DynamicZoneFieldRenderer({
       })}
 
       {showPicker ? (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-medium">Pick a component</p>
-          <div className="grid grid-cols-2 gap-2">
-            {availableComponents.map((comp) => (
-              <button
-                key={comp.uid}
-                type="button"
-                onClick={() => addComponent(comp.uid)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-card hover:bg-primary/10 hover:border-primary/30 transition-colors text-sm font-medium text-left">
-                <Layers className="w-4 h-4 text-yellow-600 shrink-0" />
-                {comp.displayName}
-              </button>
-            ))}
+        <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-primary/[0.02] to-transparent p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">Pick a component</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {availableComponents.length > 0
+                  ? `${availableComponents.length} component${availableComponents.length === 1 ? "" : "s"} available`
+                  : "No components match this zone"}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => setShowPicker(false)}>
+              Cancel
+            </Button>
           </div>
-          {availableComponents.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              No components available. Create components in the Schema Builder
-              first.
-            </p>
+          {availableComponents.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border bg-background/60 p-6 text-center">
+              <Puzzle className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm font-medium">No components available</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                Create a component in the Schema Builder first, then come back
+                here to add it to {field}.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {availableComponents.map((comp) => {
+                const fieldCount = Object.keys(comp.attributes ?? {}).length;
+                return (
+                  <button
+                    key={comp.uid}
+                    type="button"
+                    onClick={() => addComponent(comp.uid)}
+                    className="group flex flex-col items-start gap-2 p-3 rounded-xl border border-border bg-card hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all text-left shadow-sm hover:shadow">
+                    <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 group-hover:scale-110 transition-transform">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 w-full">
+                      <p className="text-sm font-medium truncate">
+                        {comp.displayName}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {fieldCount} field{fieldCount === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowPicker(false)}>
-            Cancel
-          </Button>
         </div>
       ) : (
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
           onClick={() => setShowPicker(true)}
-          className="gap-2 border-dashed">
-          <Puzzle className="w-3.5 h-3.5" /> Add a component to {field}
-        </Button>
+          className={cn(
+            "group w-full flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-background/40 px-6 py-7 text-center transition-all",
+            "hover:border-primary/50 hover:bg-primary/[0.03] hover:-translate-y-0.5 hover:shadow-sm",
+            items.length === 0 && "py-10",
+          )}>
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:scale-110 group-hover:bg-primary/20 transition-all">
+            <Plus className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {items.length === 0
+                ? `Add a component to ${field}`
+                : "Add another component"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              <Puzzle className="inline w-3 h-3 mr-1" />
+              {availableComponents.length} compatible component
+              {availableComponents.length === 1 ? "" : "s"}
+            </p>
+          </div>
+        </button>
       )}
     </div>
   );
