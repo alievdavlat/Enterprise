@@ -33,7 +33,9 @@ import {
   Layers,
   Network,
   KeyRound,
+  Settings as SettingsIcon,
 } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 
 type DbInfo = {
   connected?: boolean;
@@ -254,13 +256,13 @@ export default function SettingsOverviewPage() {
   ];
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-300">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage global project configuration, integrations and plugins
-        </p>
-      </div>
+    <div className="p-8 space-y-8">
+      <PageHeader
+        icon={SettingsIcon}
+        title="Settings"
+        description="Manage global project configuration, integrations and plugins."
+        variant="primary"
+      />
 
       {/* Stats row */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-5">

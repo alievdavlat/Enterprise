@@ -11,6 +11,7 @@ import { Database, Play, Undo2, Plus, CheckCircle2, Clock } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { EmptyState, PanelLoadingSkeleton } from "@/components/builder/shared";
+import { PageHeader } from "@/components/shared";
 
 interface MigrationRow {
   name: string;
@@ -82,31 +83,35 @@ export default function MigrationsPage() {
   const executed = rows.filter((r) => r.executed);
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
-            <Database className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Migrations</h1>
-            <p className="text-muted-foreground mt-1">
-              Apply, roll back and scaffold database migrations without leaving the browser.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setCreateOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Create
-          </Button>
-          <Button variant="outline" onClick={runDown} disabled={running || executed.length === 0}>
-            <Undo2 className="w-4 h-4 mr-2" /> Rollback last
-          </Button>
-          <Button onClick={runUp} disabled={running || pending.length === 0}>
-            <Play className="w-4 h-4 mr-2" /> {running ? "Running…" : `Apply ${pending.length} pending`}
-          </Button>
-        </div>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Database}
+        eyebrow="Settings"
+        title="Migrations"
+        description="Apply, roll back and scaffold database migrations without leaving the browser."
+        variant="violet"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Create
+            </Button>
+            <Button
+              variant="outline"
+              onClick={runDown}
+              disabled={running || executed.length === 0}>
+              <Undo2 className="w-4 h-4 mr-2" /> Rollback last
+            </Button>
+            <Button
+              onClick={runUp}
+              disabled={running || pending.length === 0}>
+              <Play className="w-4 h-4 mr-2" />{" "}
+              {running
+                ? "Running…"
+                : `Apply ${pending.length} pending`}
+            </Button>
+          </>
+        }
+      />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">

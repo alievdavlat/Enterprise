@@ -29,6 +29,7 @@ import { Plus, Save, Shield, Users as UsersIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
+import { PageHeader } from "@/components/shared";
 
 type Role = { id: number; name: string; description?: string };
 type Permission = {
@@ -171,23 +172,19 @@ export default function RolesPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
-            <Shield className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Roles</h1>
-            <p className="text-muted-foreground mt-1">
-              Define roles and choose which content types each role can read or modify.
-            </p>
-          </div>
-        </div>
-        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4" /> New role
-        </Button>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Shield}
+        eyebrow="Settings"
+        title="Roles"
+        description="Define roles and choose which content types each role can read or modify."
+        variant="primary"
+        actions={
+          <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4" /> New role
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
         <Card className="border-border/50 h-fit">

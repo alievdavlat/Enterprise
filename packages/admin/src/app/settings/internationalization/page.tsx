@@ -24,6 +24,7 @@ import {
 } from "@enterprise/design-system";
 import { api } from "@/lib/api";
 import { toast } from "@enterprise/design-system";
+import { PageHeader } from "@/components/shared";
 
 type Locale = {
   id: number;
@@ -94,23 +95,21 @@ export default function InternationalizationPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Internationalization
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage locales for content
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={openCreate}>
-              <Plus className="w-4 h-4" />
-              Add new locale
-            </Button>
-          </DialogTrigger>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={Globe}
+        eyebrow="Settings"
+        title="Internationalization"
+        description="Manage locales for translated content."
+        variant="emerald"
+        actions={
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus className="w-4 h-4" />
+            Add new locale
+          </Button>
+        }
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
@@ -156,7 +155,6 @@ export default function InternationalizationPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
       {loading ? (
         <Card className="border-border/50">
           <CardContent className="p-8 text-center text-muted-foreground">

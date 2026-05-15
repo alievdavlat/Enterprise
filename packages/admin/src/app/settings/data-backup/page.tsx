@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
+import { PageHeader } from "@/components/shared";
 import {
   Button,
   Card,
@@ -127,20 +128,14 @@ export default function DataBackupPage() {
   };
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-300">
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20">
-            <Database className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Data Backup</h1>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              Export your project schemas, content & uploads or restore from a previous backup
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="p-8 space-y-8">
+      <PageHeader
+        icon={Database}
+        eyebrow="Settings"
+        title="Data Backup"
+        description="Export your project schemas, content & uploads or restore from a previous backup."
+        variant="primary"
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* EXPORT */}

@@ -11,6 +11,7 @@ import {
   Input,
 } from "@enterprise/design-system";
 import { Code, ExternalLink, FileJson, Search } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 
 type OpenApiSpec = {
   openapi?: string;
@@ -84,28 +85,23 @@ export default function ApiDocsPage() {
   }, [filtered]);
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2 rounded-lg border border-primary/20">
-            <FileJson className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">API Documentation</h1>
-            <p className="text-muted-foreground mt-1">
-              Auto-generated OpenAPI 3.0 specification for the REST API.
-            </p>
-          </div>
-        </div>
-        <a
-          href={`${process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api"}/openapi.json`}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-        >
-          <ExternalLink className="w-4 h-4" /> Raw spec
-        </a>
-      </div>
+    <div className="p-8 space-y-6">
+      <PageHeader
+        icon={FileJson}
+        eyebrow="Settings"
+        title="API Documentation"
+        description="Auto-generated OpenAPI 3.0 specification for the REST API."
+        variant="blue"
+        actions={
+          <a
+            href={`${process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api"}/openapi.json`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+            <ExternalLink className="w-4 h-4" /> Raw spec
+          </a>
+        }
+      />
 
       {loading ? (
         <Card>
