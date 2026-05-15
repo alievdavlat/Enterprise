@@ -73,6 +73,7 @@ export function ExtensionsPanel() {
       description="Pre / post hooks that wrap built-in plugin actions. Inspect inputs, mutate outputs, or short-circuit by throwing."
       emptyHint="Hook into the built-in plugins (upload, email, auth, users-permissions) without forking them. Add a watermark on every upload, attach a footer to every email, log every login attempt — all from here."
       resourcePath="user-extensions"
+      kind="extensions"
       columns={COLUMNS}
       fields={FIELDS}
     />

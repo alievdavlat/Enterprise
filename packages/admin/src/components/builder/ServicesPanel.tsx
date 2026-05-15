@@ -53,6 +53,7 @@ export function ServicesPanel() {
       description="Reusable business-logic functions. Call from any route, lifecycle or cron via app.userService(name)."
       emptyHint="Bundle reusable logic (data fetches, transforms, notification senders) so multiple endpoints share the same code path without copy-paste."
       resourcePath="user-services"
+      kind="services"
       columns={COLUMNS}
       fields={FIELDS}
     />

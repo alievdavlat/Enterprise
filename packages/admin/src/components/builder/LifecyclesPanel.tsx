@@ -78,6 +78,7 @@ export function LifecyclesPanel() {
       description="Run code when a content-type entry is created, updated, deleted or read. Strapi-style — auto-scoped per model."
       emptyHint="Wire automation directly into the data layer — auto-slug, audit logging, denormalisation, validation, notifications."
       resourcePath="user-lifecycles"
+      kind="lifecycles"
       columns={COLUMNS}
       fields={FIELDS}
     />

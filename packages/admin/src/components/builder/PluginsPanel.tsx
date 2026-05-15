@@ -70,6 +70,7 @@ export function PluginsPanel() {
       description="Group existing routes / services / middlewares / lifecycles into a shippable plugin. Toggle the whole bundle on or off in one click."
       emptyHint="Bundle related no-code items together — e.g. ship a 'blog' plugin that includes the article service, the latest-posts route, the slug-on-create lifecycle, and the auth-check middleware."
       resourcePath="user-plugins"
+      kind="plugins"
       columns={COLUMNS}
       fields={FIELDS}
     />
