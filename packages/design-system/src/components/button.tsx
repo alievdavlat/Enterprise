@@ -59,6 +59,26 @@ function Button({
   const Comp = asChild ? Slot.Root : "button";
   const showSpinner = loading && !asChild;
 
+  // Slot.Root (when asChild=true) calls React.Children.only on its
+  // children — passing both `{spinnerOrNull}` and `{children}` would
+  // be two array slots even when the spinner is null, breaking that
+  // invariant. So for asChild we forward `children` verbatim and skip
+  // the spinner entirely; loading must be expressed by the consumer on
+  // the wrapped element.
+  if (asChild) {
+    return (
+      <Comp
+        data-slot="button"
+        data-variant={variant}
+        data-size={size}
+        disabled={disabled}
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...props}>
+        {children}
+      </Comp>
+    );
+  }
+
   return (
     <Comp
       data-slot="button"
@@ -66,7 +86,7 @@ function Button({
       data-size={size}
       data-loading={showSpinner || undefined}
       aria-busy={showSpinner || undefined}
-      disabled={!asChild ? disabled || loading : disabled}
+      disabled={disabled || loading}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}>
       {showSpinner ? (
