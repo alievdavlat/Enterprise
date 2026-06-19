@@ -1,22 +1,28 @@
-# Enterprise CMS
+# Enterprise
 
-<p align="center"><img src="packages/admin/public/logo.svg" width="64" height="64" alt="Enterprise CMS" /></p>
+<p align="center"><img src="packages/admin/public/logo.svg" width="64" height="64" alt="Enterprise" /></p>
 
-Enterprise headless CMS: Strapi kabi bitta buyruq bilan yangi ilova yaratish (`npx create-enterprise-app my-app` yoki localda `npm run create my-app`). Monorepo: Next.js Admin, Express backend, REST + GraphQL, Content Type Builder, plugins, hooks.
+An open-source headless CMS that works the way Strapi does: scaffold a project with a single command, model your content in an admin panel, and read it back over REST or GraphQL.
 
-## Hujjatlar
+I built this to understand how a CMS like Strapi actually works under the hood, so most of it is written from scratch instead of wired together from existing libraries.
 
-Batafsil qo'llanma va feature hujjatlari `docs-local/` papkasida (local foydalanish uchun, GitHub'ga yuklanmaydi).
+## Features
 
-| Fayl | Maqsad |
-|------|--------|
-| docs-local/STRAPI_V5_ENTERPRISE_ALIGNMENT.md | Strapi v5 ga moslashtirish rejasi |
-| docs-local/LOCAL_TESTING_GUIDE.md | Localda test qilish qo'llanmasi |
-| docs-local/NPM_PUBLISH_GUIDE.md | NPM publish qo'llanmasi |
+- Scaffold a new project with one command (`npx create-enterprise-app my-app`)
+- Content-Type Builder for modelling content from the admin UI
+- REST and GraphQL APIs out of the box
+- Plugin and lifecycle-hook system for extending the backend
+- Two layouts: a full app (admin + API) or API-only
 
-## Ikki rejim
+## Tech stack
 
-### 1. Local (development / test)
+- TypeScript across the whole codebase
+- Turborepo monorepo
+- Next.js admin panel
+- Express backend serving REST and GraphQL
+- A CLI generator (`create-enterprise-app`)
+
+## Getting started
 
 ```bash
 npm install
@@ -24,62 +30,25 @@ npm run build
 npm run create my-app
 cd my-app
 npm install
-# .env ni tahrirlang (root da: DB_*, NEXT_PUBLIC_API_URL=http://localhost:3001/api)
+# edit .env (DB_*, NEXT_PUBLIC_API_URL=http://localhost:3001/api)
 npm run develop
 ```
 
-### 2. NPM (foydalanuvchilar uchun)
-
-Strapi kabi bitta buyruq orqali yangi ilova yaratish:
+Once the packages are published, you can scaffold from anywhere:
 
 ```bash
 npx create-enterprise-app my-app
-# yoki: npm create enterprise-app my-app
 cd my-app
 npm install
-# .env ni tahrirlang (DB_*, NEXT_PUBLIC_API_URL)
 npm run develop
-# yoki npm run dev
 ```
 
-## Layout tanlash
+## Project structure
 
-- **Standard (default)** – to'liq ilova: config/, src/, database/, public/ + Admin (`@enterprise/admin` dan)
-- **API only** – faqat API: config/, src/, database/
+- `packages/admin` is the admin UI
+- `packages/cli` is the `create-enterprise-app` generator
+- everything under `packages/` is what gets published to npm
 
-```bash
-npm run create my-app
-# Default: Standard (Full) – Admin + API
-```
+## Status
 
-yoki:
-
-```bash
-node packages/cli/dist/index.js my-app --layout enterprise
-# API only
-```
-
-## Build
-
-Memory muammosi bo'lsa (design-system OOM):
-
-```bash
-set NODE_OPTIONS=--max-old-space-size=4096
-npm run build
-```
-
-(design-system build skripti allaqachon NODE_OPTIONS qo'llaydi.)
-
-## Scripts
-
-| Buyruq | Tavsif |
-|--------|--------|
-| `npm run build` | Barcha paketlarni build qilish |
-| `npm run dev` | Admin + backend parallel |
-| `npm run create <name>` | Loyiha generatsiya |
-
-## Loyiha tuzilmasi va publish
-
-- **packages/admin** – Admin UI (`@enterprise/admin`). **packages/cli** – create-enterprise-app CLI. Barcha publish qilinadigan modullar `packages/` da.
-- **Local create:** `npm run create my-app` loyihani **monorepo ichida** yarating; CLI `@enterprise/*` ni `file:../../packages/...` qiladi, shunda `npm install` 404 bermaydi.
-- **NPM publish:** `packages/cli` va `packages/admin` (va boshqa `@enterprise/*`) ni npm ga chiqarsangiz, `npx create-enterprise-app` tashqarida ham ishlaydi. Batafsil: `docs-local/NPM_PUBLISH_GUIDE.md`, local test: `docs-local/LOCAL_TESTING_GUIDE.md`.
+Still in active development. I'm currently aligning the content model and API closer to Strapi v5.
