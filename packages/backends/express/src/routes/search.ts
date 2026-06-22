@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import type { SchemaRegistry, PermissionManager } from "@enterprise/core";
 import type { DatabaseAdapter } from "@enterprise/database";
 import type { FieldDefinition } from "@enterprise/types";
-import { applyTextSearchFilter, resolveSearchFields } from "./content-types";
+import { applyTextSearchFilter, resolveSearchFields } from "./content-types.helpers";
 import { resolveRequestRole } from "../middlewares/auth";
 
 /**
