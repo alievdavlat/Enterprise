@@ -47,6 +47,21 @@ import { createSearchRouter } from "./routes/search";
 import { createGraphQLServer } from "./graphql/server";
 import { authMiddleware, adminAuthMiddleware, createContentApiAuth } from "./middlewares/auth";
 import { errorHandler } from "./middlewares/errorHandler";
+import { parseJsonValue } from "./lib/jsonValue";
+
+/**
+ * Default on/off state for the five toggleable core middlewares exposed in the
+ * admin "Plugins & Tools → Middlewares" tab. Persisted overrides live in
+ * core_store under `admin::middlewares`. Must match the UI defaults in
+ * packages/admin/src/consts/plugin-middleware.const.ts.
+ */
+const CORE_MIDDLEWARE_DEFAULTS: Record<string, boolean> = {
+  logger: true,
+  cors: true,
+  rateLimit: true,
+  bodySize: true,
+  timeout: false,
+};
 
 export class EnterpriseServer {
   private app: Application;
@@ -86,6 +101,8 @@ export class EnterpriseServer {
   };
   private discoveredCronJobs: { registered: string[]; skipped: string[] } = { registered: [], skipped: [] };
   private discoveredServices: { registered: string[]; skipped: string[] } = { registered: [], skipped: [] };
+  /** Live on/off map for the toggleable core middlewares; read per-request so admin toggles apply without a restart. */
+  private coreMiddlewareState: Record<string, boolean> = { ...CORE_MIDDLEWARE_DEFAULTS };
 
   constructor(config: EnterpriseConfig) {
     this.config = config;
@@ -324,11 +341,12 @@ export class EnterpriseServer {
       console.log("[Enterprise] Table enterprise_media created");
     } else if (typeof (this.db as { addColumnIfNotExists?: unknown }).addColumnIfNotExists === "function") {
       // Migration for existing installs: ensure responsive-image columns exist.
-      const addCol = (this.db as { addColumnIfNotExists: (t: string, c: string, type: string, opts?: { nullable?: boolean }) => Promise<void> }).addColumnIfNotExists;
+      // Call as a member (not a detached reference) so `this` stays bound inside the adapter.
+      const migratable = this.db as DatabaseAdapter & { addColumnIfNotExists: (t: string, c: string, type: string, opts?: { nullable?: boolean }) => Promise<void> };
       try {
-        await addCol("enterprise_media", "width", "integer", { nullable: true });
-        await addCol("enterprise_media", "height", "integer", { nullable: true });
-        await addCol("enterprise_media", "formats", "text", { nullable: true });
+        await migratable.addColumnIfNotExists("enterprise_media", "width", "integer", { nullable: true });
+        await migratable.addColumnIfNotExists("enterprise_media", "height", "integer", { nullable: true });
+        await migratable.addColumnIfNotExists("enterprise_media", "formats", "text", { nullable: true });
       } catch (err) {
         console.warn("[Enterprise] Could not migrate enterprise_media:", err);
       }
@@ -408,10 +426,11 @@ export class EnterpriseServer {
       });
       console.log("[Enterprise] Table enterprise_auth_providers created");
     } else if (typeof (this.db as { addColumnIfNotExists?: unknown }).addColumnIfNotExists === "function") {
-      const addCol = (this.db as { addColumnIfNotExists: (t: string, c: string, type: string, opts?: { nullable?: boolean }) => Promise<void> }).addColumnIfNotExists;
+      // Call as a member (not a detached reference) so `this` stays bound inside the adapter.
+      const migratable = this.db as DatabaseAdapter & { addColumnIfNotExists: (t: string, c: string, type: string, opts?: { nullable?: boolean }) => Promise<void> };
       try {
-        await addCol("enterprise_auth_providers", "isCustom", "boolean", { nullable: true });
-        await addCol("enterprise_auth_providers", "customConfig", "text", { nullable: true });
+        await migratable.addColumnIfNotExists("enterprise_auth_providers", "isCustom", "boolean", { nullable: true });
+        await migratable.addColumnIfNotExists("enterprise_auth_providers", "customConfig", "text", { nullable: true });
       } catch {
         /* best-effort migration */
       }
@@ -735,6 +754,10 @@ export class EnterpriseServer {
       console.warn("[Enterprise] Middlewares loader failed:", err);
     }
 
+    // Load the admin::middlewares toggle map before wiring Express so the core
+    // middlewares (logger / cors / rateLimit / bodySize / timeout) honour it.
+    await this.loadCoreMiddlewareState();
+
     // Setup Express middleware
     this.setupMiddlewares();
 
@@ -756,8 +779,37 @@ export class EnterpriseServer {
     console.log("[Enterprise] Server initialized successfully");
   }
 
+  /**
+   * Load the `admin::middlewares` toggle map from core_store, starting from
+   * CORE_MIDDLEWARE_DEFAULTS. Reassigns `this.coreMiddlewareState`, which the
+   * per-request gates in setupMiddlewares read live — so the admin UI toggle
+   * takes effect without a server restart.
+   */
+  async loadCoreMiddlewareState(): Promise<void> {
+    const state: Record<string, boolean> = { ...CORE_MIDDLEWARE_DEFAULTS };
+    try {
+      if (await this.db.tableExists("enterprise_core_store_settings")) {
+        const row = await this.db.findOneBy("enterprise_core_store_settings", { key: "admin::middlewares" });
+        const stored = parseJsonValue<Record<string, boolean>>((row as { value?: unknown } | null)?.value, {});
+        for (const key of Object.keys(state)) {
+          if (key in stored) state[key] = !!stored[key];
+        }
+      }
+    } catch (err) {
+      console.warn("[Enterprise] Could not load admin::middlewares state, using defaults:", err);
+    }
+    this.coreMiddlewareState = state;
+  }
+
   private setupMiddlewares(): void {
-    // Security
+    // Gate a core middleware behind its admin::middlewares toggle. The state is
+    // read per-request so UI toggles apply live (no restart).
+    const gate = (id: string, mw: express.RequestHandler): express.RequestHandler =>
+      (req, res, next) => (this.coreMiddlewareState[id] === false ? next() : mw(req, res, next));
+
+    const rlApiPrefix = this.config.api?.rest?.prefix || "/api";
+
+    // Security (always on — not user-toggleable)
     this.app.use(
       helmet({
         crossOriginEmbedderPolicy: false,
@@ -765,26 +817,77 @@ export class EnterpriseServer {
       }),
     );
 
-    // CORS
+    // CORS (toggle: "cors")
     const corsOrigin = this.config.server?.cors?.origin || "*";
     this.app.use(
-      cors({
-        origin: corsOrigin,
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+      gate(
+        "cors",
+        cors({
+          origin: corsOrigin,
+          credentials: true,
+          methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+          allowedHeaders: ["Content-Type", "Authorization"],
+        }),
+      ),
+    );
+
+    // Rate limiting (toggle: "rateLimit"). Skips the admin panel + admin API so
+    // the management UI is never throttled by its own polling.
+    const rateWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || String(15 * 60 * 1000), 10);
+    const rateMax = this.config.server?.rateLimit?.max || parseInt(process.env.RATE_LIMIT_MAX || "100", 10);
+    this.app.use(
+      gate(
+        "rateLimit",
+        rateLimit({
+          windowMs: rateWindowMs,
+          max: rateMax,
+          standardHeaders: true,
+          legacyHeaders: false,
+          skip: (req) => req.path.startsWith("/admin") || req.path.startsWith(`${rlApiPrefix}/admin`),
+        }),
+      ),
+    );
+
+    // Request timeout (toggle: "timeout", default off). Responds 503 if a
+    // request outlives the configured budget.
+    const requestTimeoutMs = parseInt(process.env.REQUEST_TIMEOUT_MS || "30000", 10);
+    this.app.use(
+      gate("timeout", (req, res, next) => {
+        res.setTimeout(requestTimeoutMs, () => {
+          if (!res.headersSent) {
+            res
+              .status(503)
+              .json({ error: { status: 503, name: "ServiceUnavailable", message: "Request timed out" } });
+          }
+        });
+        next();
       }),
     );
 
-    // Compression
+    // Compression (always on)
     this.app.use(compression());
+
+    // Body size limit (toggle: "bodySize"). Rejects oversized payloads up front
+    // by Content-Length; the body parsers below still enforce a hard 50mb cap.
+    const bodyLimitBytes = parseInt(process.env.BODY_SIZE_LIMIT_BYTES || String(10 * 1024 * 1024), 10);
+    this.app.use(
+      gate("bodySize", (req, res, next) => {
+        const len = Number(req.headers["content-length"] || 0);
+        if (len > bodyLimitBytes) {
+          return res.status(413).json({
+            error: { status: 413, name: "PayloadTooLarge", message: `Request body exceeds ${bodyLimitBytes} bytes` },
+          });
+        }
+        next();
+      }),
+    );
 
     // Body parsing
     this.app.use(json({ limit: "50mb" }));
     this.app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-    // Logging
-    this.app.use(morgan("combined"));
+    // Logging (toggle: "logger")
+    this.app.use(gate("logger", morgan("combined")));
 
     // User-defined middlewares (config/middlewares.ts + src/middlewares/*).
     // Applied here so they run after the security/CORS/body bootstrap and
@@ -997,6 +1100,7 @@ export class EnterpriseServer {
         reloadUserLifecycles: () => this.applyUserLifecycles(),
         reloadUserExtensions: () => this.applyUserExtensions(),
         reloadUserPlugins: () => this.applyUserPlugins(),
+        reloadCoreMiddlewares: () => this.loadCoreMiddlewareState(),
         permissionManager: this.permissionManager,
       }),
     );
@@ -1223,22 +1327,14 @@ export class EnterpriseServer {
         // `{ fields: ["title", "body"] }`).
         let fields: string[] | undefined;
         if (p.properties) {
-          try {
-            const parsed = JSON.parse(p.properties);
-            if (Array.isArray(parsed?.fields)) fields = parsed.fields;
-          } catch {
-            /* ignore */
-          }
+          const parsed = parseJsonValue<{ fields?: unknown }>(p.properties, {});
+          if (Array.isArray(parsed?.fields)) fields = parsed.fields as string[];
         }
         // Parse named conditions referenced by this rule.
         let conditions: string[] | undefined;
         if (p.conditions) {
-          try {
-            const parsed = JSON.parse(p.conditions);
-            if (Array.isArray(parsed)) conditions = parsed;
-          } catch {
-            /* ignore */
-          }
+          const parsed = parseJsonValue<unknown>(p.conditions, null);
+          if (Array.isArray(parsed)) conditions = parsed as string[];
         }
         this.permissionManager.addRule({ action, role: roleName, allow: true, fields, conditions });
       }
@@ -1260,12 +1356,7 @@ export class EnterpriseServer {
       const row = await this.db.findOneBy("enterprise_core_store_settings", {
         key: "admin::plugins",
       });
-      const value = (row as { value?: string } | null)?.value;
-      if (typeof value !== "string" || !(value.startsWith("{") || value.startsWith("["))) {
-        return {};
-      }
-      const parsed = JSON.parse(value);
-      return parsed && typeof parsed === "object" ? (parsed as Record<string, boolean>) : {};
+      return parseJsonValue<Record<string, boolean>>((row as { value?: unknown } | null)?.value, {});
     } catch {
       return {};
     }
@@ -1656,15 +1747,10 @@ export class EnterpriseServer {
     const row = await this.db
       .findOneBy("enterprise_core_store_settings", { key: "admin::backup-schedule" })
       .catch(() => null);
-    let cfg: { enabled?: boolean; frequency?: string; cron?: string; includeContent?: boolean; includeUploads?: boolean } = {};
-    const value = (row as { value?: string } | null)?.value;
-    if (typeof value === "string") {
-      try {
-        cfg = JSON.parse(value);
-      } catch {
-        /* ignore malformed config */
-      }
-    }
+    const cfg = parseJsonValue<{ enabled?: boolean; frequency?: string; cron?: string; includeContent?: boolean; includeUploads?: boolean }>(
+      (row as { value?: unknown } | null)?.value,
+      {},
+    );
     // Always tear down any previous job so a disable flips it off.
     try {
       this.cronManager.remove("enterprise::backup");
@@ -1799,15 +1885,8 @@ export class EnterpriseServer {
       .findOneBy("enterprise_core_store_settings", { key: "admin::backup-schedule" })
       .catch(() => null);
     let retention = 7;
-    const value = (row as { value?: string } | null)?.value;
-    if (typeof value === "string") {
-      try {
-        const cfg = JSON.parse(value);
-        if (typeof cfg.retention === "number" && cfg.retention > 0) retention = cfg.retention;
-      } catch {
-        /* ignore */
-      }
-    }
+    const cfg = parseJsonValue<{ retention?: number }>((row as { value?: unknown } | null)?.value, {});
+    if (typeof cfg.retention === "number" && cfg.retention > 0) retention = cfg.retention;
     const files = await this.listBackupFiles();
     const overflow = files.slice(retention);
     const projectRoot = this.config.appPath ?? process.cwd();

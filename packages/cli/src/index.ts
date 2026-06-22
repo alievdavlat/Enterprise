@@ -21,12 +21,25 @@ const isMonorepo = (): boolean => {
   );
 };
 
-const copyFilter = (src: string): boolean => {
-  const normalized = src.replace(/\\/g, "/");
+/**
+ * True if a path SEGMENT chain contains build junk we never want to copy.
+ * Tests a RELATIVE path only — an absolute source path may legitimately live
+ * under `node_modules` (the package is installed there for npx / global use),
+ * and testing the absolute path would wrongly exclude every template file.
+ */
+const isJunkRelPath = (relPath: string): boolean => {
+  const n = relPath.replace(/\\/g, "/");
   return (
-    !/node_modules|\.next\/|\/dist\/|\.turbo\//.test(normalized) &&
-    !/\.(tsbuildinfo|log)$/.test(normalized)
+    /(^|\/)(node_modules|\.next|dist|\.turbo)(\/|$)/.test(n) ||
+    /\.(tsbuildinfo|log)$/.test(n)
   );
+};
+
+/** Copy filter for sources rooted at `baseDir`; excludes build junk by relative path. */
+const makeCopyFilter = (baseDir: string) => (src: string): boolean => {
+  const rel = path.relative(baseDir, src);
+  if (rel === "") return true; // the root dir itself
+  return !isJunkRelPath(rel);
 };
 
 /** Exclude template's admin folder and unused dirs when copying (admin from @enterprise/admin; .tmp/.enterprise unused). */
@@ -37,7 +50,8 @@ function defaultTemplateCopyFilter(templateDir: string) {
     if (rel.startsWith("admin" + sep) || rel === "admin") return false;
     if (rel.startsWith(".tmp" + sep) || rel === ".tmp") return false;
     if (rel.startsWith(".enterprise" + sep) || rel === ".enterprise") return false;
-    return copyFilter(src);
+    if (rel === "") return true;
+    return !isJunkRelPath(rel);
   };
 }
 
@@ -123,14 +137,46 @@ async function createPackageJSON(
   await fs.writeJson(pkgPath, pkg, { spaces: 2 });
 }
 
+/** Walk up from `startDir` looking for the enterprise monorepo root (has packages/backends/express + packages/admin). */
+function findMonorepoRootFrom(startDir: string): string | null {
+  let dir = path.resolve(startDir);
+  for (let i = 0; i < 10; i++) {
+    if (
+      fs.existsSync(path.join(dir, "packages", "backends", "express", "package.json")) &&
+      fs.existsSync(path.join(dir, "packages", "admin", "package.json"))
+    ) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
 /** If the app is inside the monorepo, patch @enterprise/* deps to file:... so npm install works */
 function patchEnterpriseDepsInApp(targetPath: string, repoRoot: string): void {
   const targetAbs = path.resolve(targetPath);
   const repoAbs = path.resolve(repoRoot);
-  if (!targetAbs.startsWith(repoAbs) || targetAbs === repoAbs) return;
-  const packagesDir = path.join(repoRoot, "packages");
-  const backendsExpressDir = path.join(repoRoot, "packages", "backends", "express");
-  const adminPkgDir = path.join(repoRoot, "packages", "admin");
+  // Prefer the hinted repoRoot (set when run via `node packages/cli/dist/index.js`).
+  // Otherwise — e.g. `npx create-enterprise-app` runs from the npm cache, so the
+  // __dirname-based hint is wrong — walk up from the target to find the monorepo
+  // so a project created inside a checkout still links to the local packages.
+  let root: string | null = null;
+  if (
+    targetAbs.startsWith(repoAbs) &&
+    targetAbs !== repoAbs &&
+    fs.existsSync(path.join(repoAbs, "packages", "backends", "express", "package.json"))
+  ) {
+    root = repoAbs;
+  } else {
+    root = findMonorepoRootFrom(path.dirname(targetAbs));
+  }
+  if (!root) return;
+
+  const packagesDir = path.join(root, "packages");
+  const backendsExpressDir = path.join(root, "packages", "backends", "express");
+  const adminPkgDir = path.join(root, "packages", "admin");
   if (!fs.existsSync(packagesDir)) return;
 
   const rootPkgPath = path.join(targetPath, "package.json");
@@ -592,8 +638,8 @@ program
         const backendDest = path.join(targetPath, "backend");
         const adminDest = path.join(targetPath, "admin");
 
-        await fs.copy(backendSrc, backendDest, { filter: copyFilter });
-        await fs.copy(adminSrc, adminDest, { filter: copyFilter });
+        await fs.copy(backendSrc, backendDest, { filter: makeCopyFilter(backendSrc) });
+        await fs.copy(adminSrc, adminDest, { filter: makeCopyFilter(adminSrc) });
 
         // Root package.json
         await fs.writeJson(
@@ -727,7 +773,9 @@ Generated with \`npx create-enterprise-app\`. Structure: config/, src/, database
       }
 
       const hasFullApp = layout !== "api-only" && backend === "express" && (useFullMonorepo || hasDefaultTemplate);
-      const runAfterCreate = hasFullApp && !options.noRun;
+      // --quickstart is documented as "no run after", so it must not auto-launch
+      // the dev servers (also lets CI / scripted generation finish and exit).
+      const runAfterCreate = hasFullApp && !options.noRun && !quickstart;
 
       console.log(`\nNext steps:\n`);
       console.log(chalk.cyan(`  cd ${dirForCd}`));

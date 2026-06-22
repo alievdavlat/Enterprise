@@ -210,7 +210,7 @@ export default function SettingsOverviewPage() {
           api.get("/admin/database/info").catch(() => null),
           api.get("/admin/api-tokens").catch(() => null),
           api.get("/admin/users").catch(() => null),
-          api.get("/admin/webhooks").catch(() => null),
+          api.get("/webhooks").catch(() => null),
         ]);
         if (db) setDbInfo(db.data?.data ?? {});
         setTokensCount(tokens?.data?.data?.length ?? 0);
