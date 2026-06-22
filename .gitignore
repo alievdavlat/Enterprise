@@ -23,6 +23,16 @@ coverage
 ts_errors.txt
 docs-local
 docs
+
+# Internal docs / plans — keep them local; GitHub only carries app-info READMEs.
+# (README.md and package/template READMEs are still tracked.)
+packages/core/README_LIFECYCLE_AND_MODULES.md
+ROADMAP.md
+STATUS.md
+FEATURES.md
+*-PROGRESS.md
+*_PLAN.md
+*.plan.md
 # Compiled output in backend src (use dist only)
 packages/backends/express/src/**/*.js
 packages/backends/express/src/**/*.js.map
